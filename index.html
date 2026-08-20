@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="no">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ExpiryGuard v4 | Cloud247</title>
+  <meta name="description" content="Multi-tenant dashboard for Apple Push-sertifikater, ADE-tokens, Apps & Books/VPP-tokens og andre utløpsdatoer fra Microsoft Intune.">
+  <meta name="theme-color" content="#061A2F">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <div class="shell header-inner">
+    <a class="cloud-brand" href="https://cloud247.no/" aria-label="Cloud247 forside"><img src="assets/cloud247-logo.svg" alt="Cloud247 Technology"></a>
+    <div class="header-account"><span class="header-label">ExpiryGuard v4</span><div class="auth-user" id="authUser" hidden><span class="auth-avatar" id="authAvatar">?</span><span class="auth-user-copy"><strong id="authUserName">Microsoft</strong><small id="authUserAccount">–</small></span><button class="header-signout" id="signOutButton" type="button">Logg ut</button></div></div>
+  </div>
+</header>
+
+<section class="auth-gate" id="authGate">
+  <div class="shell auth-gate-shell">
+    <div class="auth-intro">
+      <p class="cloud-eyebrow">CLOUD TOOLBOX</p>
+      <h1>ExpiryGuard</h1>
+      <p>Hold kontroll på Apple Push-sertifikater, ADE- og VPP-tokens og andre utløpsdatoer på tvers av kundene dine.</p>
+      <div class="hero-trust-row" aria-label="ExpiryGuard-funksjoner"><span>Microsoft Graph</span><span>Multi-tenant</span><span>Fornyelsesplan</span><span>Live nedtelling</span></div>
+    </div>
+    <article class="auth-card cloud-panel">
+      <div class="auth-card-heading">
+        <div>
+          <p class="hero-card-kicker">MICROSOFT-INNLOGGING</p>
+          <h2>Åpne dashboardet</h2>
+          <p>Logg inn med management-kontoen din for å administrere kunder og utløpsdata.</p>
+        </div>
+        <span class="auth-mark" aria-hidden="true">◷</span>
+      </div>
+      <button class="microsoft-button" id="signInButton" type="button"><span class="microsoft-logo" aria-hidden="true"><i></i><i></i><i></i><i></i></span>Logg inn med Microsoft</button>
+      <small id="authStatus">Ingen admin-token eller passord lagres i frontend.</small>
+    </article>
+  </div>
+</section>
+
+<main id="appMain" hidden>
+  <section class="hero">
+    <div class="shell hero-grid">
+      <div class="hero-copy">
+        <p class="eyebrow">CLOUD TOOLBOX</p>
+        <h1>ExpiryGuard</h1>
+        <p class="lead">Se ikke bare når noe utløper – se <strong>når du bør begynne å fornye det</strong>. Multi-tenant oversikt med Microsoft Graph, handlingsvinduer, live nedtelling og browser-varsler.</p>
+        <div class="hero-pills"><span>Microsoft Graph</span><span>Multi-tenant</span><span>Fornyelsesplan</span><span>Live nedtelling</span><span>Browser-varsler</span></div>
+      </div>
+      <article class="hero-card">
+        <div class="hero-card-head">
+          <div><span class="mini-label">NESTE ANBEFALTE HANDLING</span><strong id="heroNextTitle">Kobler til…</strong><small id="heroNextTenant">–</small></div>
+          <span class="status-dot" id="heroStatusDot"></span>
+        </div>
+        <div class="hero-countdown" id="heroCountdown">–</div>
+        <p class="hero-recommendation" id="heroRecommendation">Venter på data…</p>
+        <div class="hero-actions"><button class="primary-button" id="syncAllButton" type="button">↻ Synkroniser alle</button><button class="secondary-button hero-secondary" id="notificationsButton" type="button">🔔 Varsler</button></div>
+      </article>
+    </div>
+  </section>
+
+  <section class="app-section">
+    <div class="shell app-layout">
+      <aside class="tenant-panel" id="tenantPanel">
+        <div class="panel-head"><div><p class="eyebrow dark">KUNDER</p><h2>Tenants</h2></div><button class="icon-button" id="addTenantButton" type="button" title="Legg til kunde">+</button></div>
+        <button class="tenant-choice active" data-tenant="all" type="button"><span class="tenant-icon">◎</span><span><strong>Alle kunder</strong><small id="allTenantCount">0 tenants</small></span></button>
+        <div id="tenantList" class="tenant-list"></div>
+        <button class="secondary-button wide" id="manageTenantsButton" type="button">Administrer kunder</button>
+      </aside>
+
+      <div class="main-panel">
+        <div class="toolbar">
+          <div class="toolbar-left">
+            <button class="primary-button" id="addManualButton" type="button">+ Legg til manuelt</button>
+            <button class="secondary-button" id="fullscreenButton" type="button">⛶ Fullskjerm</button>
+            <button class="secondary-button" id="displayModeButton" type="button">◫ Dashboard-modus</button>
+          </div>
+          <div class="toolbar-right">
+            <label class="file-button secondary-button" for="importFile">Import</label><input id="importFile" type="file" accept=".json,.csv,application/json,text/csv" hidden>
+            <button class="secondary-button" id="exportJsonButton" type="button">Eksporter JSON</button>
+            <button class="secondary-button" id="exportCsvButton" type="button">Eksporter CSV</button>
+            <button class="secondary-button" id="exportIcsButton" type="button">Eksporter kalender</button>
+            <button class="secondary-button" id="settingsButton" type="button">⚙ Innstillinger</button>
+          </div>
+        </div>
+
+        <div id="healthBanner" class="health-banner" hidden></div>
+
+        <section class="stats-grid v3-stats" aria-label="Oversikt">
+          <article class="stat-card"><span>Totalt</span><strong id="statTotal">0</strong><small>utløpsdatoer</small></article>
+          <article class="stat-card ok"><span>Planlagt</span><strong id="statPlanned">0</strong><small>ikke tid ennå</small></article>
+          <article class="stat-card action"><span>Start nå</span><strong id="statAction">0</strong><small>innen anbefalt vindu</small></article>
+          <article class="stat-card urgent"><span>Haster</span><strong id="statUrgent">0</strong><small>bør være i gang</small></article>
+          <article class="stat-card danger"><span>Kritisk</span><strong id="statCritical">0</strong><small>prioriter i dag</small></article>
+          <article class="stat-card expired"><span>Utløpt</span><strong id="statExpired">0</strong><small>krever handling</small></article>
+        </section>
+
+        <section class="action-card" id="actionCard">
+          <div class="action-card-head">
+            <div><p class="eyebrow dark">FORNYELSESPLAN</p><h2>Hva bør du jobbe med nå?</h2><p>Sortert etter anbefalt startdato, konsekvens og tid igjen.</p></div>
+            <span class="policy-note">Cloud247-anbefalinger</span>
+          </div>
+          <div id="actionQueue" class="action-queue"></div>
+        </section>
+
+        <section class="content-card">
+          <div class="content-head">
+            <div><p class="eyebrow dark">OVERSIKT</p><h2 id="overviewTitle">Alle kunder</h2><p class="sync-line" id="syncLine">Ikke synkronisert ennå</p><p class="display-meta" id="displayMeta"></p></div>
+            <div class="filters"><input id="searchInput" type="search" placeholder="Søk kunde, navn, type, Apple ID…" aria-label="Søk"><select id="statusFilter" aria-label="Filtrer status"><option value="all">Alle statuser</option><option value="expired">Utløpt</option><option value="critical">Kritisk</option><option value="urgent">Haster</option><option value="action">Start nå</option><option value="planned">Planlagt</option></select></div>
+          </div>
+          <div id="emptyState" class="empty-state"><div class="empty-icon">◷</div><h3>Ingen utløpsdatoer å vise</h3><p>Legg til en kunde og gi admin consent, eller opprett et manuelt element.</p></div>
+          <div id="dashboardGrid" class="expiry-grid" hidden></div>
+          <div id="tableWrap" class="table-wrap" hidden>
+            <table><thead><tr><th>Kunde</th><th>Navn</th><th>Anbefalt start</th><th>Utløper</th><th>Tid igjen</th><th>Plan</th><th>Arbeid</th><th></th></tr></thead><tbody id="itemsBody"></tbody></table>
+          </div>
+        </section>
+
+        <section class="source-card">
+          <div><p class="eyebrow dark">AUTOMATISK FRA INTUNE</p><h2>Graph-kilder</h2><p>ExpiryGuard synkroniserer bare metadata som trengs for oversikten. Selve Apple-tokenet eller sertifikatet lagres ikke.</p></div>
+          <div class="source-grid">
+            <article><span></span><strong>Apple MDM Push</strong><small>Start 60 dager før · kritisk siste 14 dager</small></article>
+            <article><span>↻</span><strong>Automated Device Enrollment</strong><small>Start 30 dager før · kritisk siste 7 dager</small></article>
+            <article><span>▦</span><strong>Apps & Books / VPP</strong><small>Start 30 dager før · kritisk siste 7 dager</small></article>
+          </div>
+        </section>
+
+        <section class="activity-card">
+          <div class="activity-head"><div><p class="eyebrow dark">HISTORIKK</p><h2>Siste fornyelser og endringer</h2></div><small>Oppdages automatisk når Graph får en nyere utløpsdato.</small></div>
+          <div id="activityList" class="activity-list"></div>
+        </section>
+      </div>
+    </div>
+  </section>
+
+  <section class="more-tools"><div class="shell more-tools-card"><div><p class="eyebrow">FLERE CLOUD247-VERKTØY</p><h2>Se mine andre verktøy</h2><p>Flere små verktøy for Microsoft 365, Intune, DNS og sikkerhet.</p></div><a class="primary-button" href="https://cloud247.no/">Åpne Cloud Toolbox →</a></div></section>
+  <section class="coffee-section" aria-labelledby="coffee-title"><div class="shell"><div class="coffee-card"><div class="coffee-icon" aria-hidden="true">☕</div><div class="coffee-copy"><p class="eyebrow dark">INGEN UTLØPTE TOKENS. FORHÅPENTLIGVIS.</p><h2 id="coffee-title">Hold ExpiryGuard våken</h2><p>Hvis dashboardet redder deg fra en utløpt Apple-integrasjon hos en kunde, kan du støtte videre utvikling av Cloud247-verktøyene.</p></div><div class="coffee-action"><a class="vipps-button" href="https://qr.vipps.no/box/90e4bd01-a470-474a-98fa-8b48f69b0f4e/pay-in" target="_blank" rel="noopener noreferrer">Spander en slurk</a></div></div></div></section>
+</main>
+
+<footer class="site-footer" id="appFooter" hidden><div class="shell footer-inner"><span>© <span id="year"></span> Cloud247</span><a href="https://cloud247.no/">cloud247.no</a></div></footer>
+
+<dialog id="tenantDialog">
+  <form method="dialog" id="tenantForm">
+    <div class="dialog-head"><div><p class="eyebrow dark">NY KUNDE</p><h2>Koble til Microsoft tenant</h2></div><button class="icon-button" value="cancel" aria-label="Lukk">×</button></div>
+    <div class="notice"><strong>Hvordan det virker</strong><p>Oppgi Tenant ID og kundenavn. ExpiryGuard lager en Microsoft admin-consent-lenke. Etter godkjenning tester backend Graph-tilgangen og legger kunden til.</p></div>
+    <div class="form-grid"><label class="field span-2">Kundenavn<input id="tenantName" required placeholder="Contoso AS"></label><label class="field span-2">Microsoft Entra Tenant ID<input id="tenantId" required pattern="[0-9a-fA-F-]{36}" placeholder="00000000-0000-0000-0000-000000000000"></label></div>
+    <div class="dialog-actions"><button class="secondary-button" value="cancel" type="button" id="cancelTenant">Avbryt</button><button class="primary-button" type="submit">Opprett consent-lenke →</button></div>
+  </form>
+</dialog>
+
+<dialog id="manageDialog">
+  <form method="dialog">
+    <div class="dialog-head"><div><p class="eyebrow dark">MULTI-TENANT</p><h2>Administrer kunder</h2></div><button class="icon-button" value="cancel" aria-label="Lukk">×</button></div>
+    <div id="manageTenantList" class="manage-list"></div>
+    <div class="dialog-actions"><button class="primary-button" value="cancel">Ferdig</button></div>
+  </form>
+</dialog>
+
+<dialog id="manualDialog">
+  <form method="dialog" id="manualForm">
+    <div class="dialog-head"><div><p class="eyebrow dark" id="manualEyebrow">MANUELT ELEMENT</p><h2 id="manualTitle">Legg til utløpsdato</h2></div><button class="icon-button" value="cancel" aria-label="Lukk">×</button></div>
+    <input type="hidden" id="manualId">
+    <div class="form-grid">
+      <label class="field">Kunde<select id="manualTenant" required></select></label>
+      <label class="field">Type<select id="manualKind"><option>TLS / SSL Certificate</option><option>SCEP / PKI Certificate</option><option>API Token / Secret</option><option>Microsoft Entra App Secret / Certificate</option><option>Lisens / abonnement</option><option>Apple / Intune annet</option><option>Egendefinert</option></select></label>
+      <label class="field span-2">Navn<input id="manualName" required placeholder="F.eks. SCEP Connector Certificate"></label>
+      <label class="field">Utløper<input id="manualExpiry" type="datetime-local" required></label>
+      <label class="field">Konsekvens<select id="manualImpact"><option value="critical">Kritisk</option><option value="high">Høy</option><option value="medium" selected>Medium</option><option value="low">Lav</option></select></label>
+      <label class="field">Start fornyelse før<input id="manualReminder" type="number" min="1" max="365" value="30"><small>dager før utløp</small></label>
+      <label class="field">Haster fra<input id="manualUrgent" type="number" min="1" max="365" value="14"><small>dager før utløp</small></label>
+      <label class="field">Kritisk fra<input id="manualCritical" type="number" min="1" max="365" value="7"><small>dager før utløp</small></label>
+      <label class="field">Eier / konto<input id="manualOwner" placeholder="Ansvarlig / konto"></label>
+      <label class="field">Administrasjonslenke<input id="manualUrl" type="url" placeholder="https://..."></label>
+      <label class="field span-2">Notater<textarea id="manualNotes" rows="3" placeholder="Fornyelsesrutine, ticket, kontaktperson…"></textarea></label>
+    </div>
+    <div id="manualPolicyHint" class="notice compact-notice"></div>
+    <div class="dialog-actions"><button class="secondary-button" value="cancel" type="button" id="cancelManual">Avbryt</button><button class="primary-button" type="submit">Lagre</button></div>
+  </form>
+</dialog>
+
+<dialog id="detailDialog" class="detail-dialog">
+  <form method="dialog">
+    <div class="dialog-head"><div><p class="eyebrow dark" id="detailEyebrow">FORNYELSESPLAN</p><h2 id="detailTitle">Detaljer</h2><p id="detailTenant" class="dialog-subtitle"></p></div><button class="icon-button" value="cancel" aria-label="Lukk">×</button></div>
+    <div class="detail-summary" id="detailSummary"></div>
+    <div class="detail-grid">
+      <section class="detail-panel"><p class="eyebrow dark">ANBEFALING</p><h3 id="detailRecommendationTitle"></h3><p id="detailRecommendation"></p><div id="detailRunbook" class="runbook"></div></section>
+      <section class="detail-panel"><p class="eyebrow dark">ARBEIDSSTATUS</p><div class="workflow-buttons" id="workflowButtons"><button type="button" data-workflow="not_started">Ikke startet</button><button type="button" data-workflow="in_progress">Pågår</button><button type="button" data-workflow="waiting">Venter</button><button type="button" data-workflow="completed">Fornyet</button></div><label class="field workflow-note">Arbeidsnotat<textarea id="workflowNote" rows="4" placeholder="Ticketnummer, hvem som jobber med saken, hva vi venter på…"></textarea></label><button class="secondary-button wide" id="saveWorkflowButton" type="button">Lagre arbeidsstatus</button></section>
+    </div>
+    <div class="metadata-panel" id="detailMetadata"></div>
+    <div class="dialog-actions detail-actions"><button class="secondary-button" id="copyTicketButton" type="button">Kopier ticket-tekst</button><a class="secondary-button" id="detailDocsLink" href="#" target="_blank" rel="noopener noreferrer">Åpne dokumentasjon ↗</a><a class="primary-button" id="detailAdminLink" href="#" target="_blank" rel="noopener noreferrer" hidden>Åpne administrasjon ↗</a><button class="primary-button" value="cancel">Lukk</button></div>
+  </form>
+</dialog>
+
+<dialog id="settingsDialog">
+  <form method="dialog" id="settingsForm">
+    <div class="dialog-head"><div><p class="eyebrow dark">INNSTILLINGER</p><h2>ExpiryGuard</h2></div><button class="icon-button" value="cancel" aria-label="Lukk">×</button></div>
+    <div class="form-grid">
+      <label class="field">Standard startvindu<select id="defaultReminder"><option value="90">90 dager</option><option value="60">60 dager</option><option value="45">45 dager</option><option value="30">30 dager</option><option value="14">14 dager</option><option value="7">7 dager</option></select></label>
+      <label class="field">Varslingsfrekvens<select id="notificationCadence"><option value="6">Hver 6. time ved behov</option><option value="12">Hver 12. time ved behov</option><option value="24">Maks én gang per døgn</option></select></label>
+      <label class="toggle-field"><input type="checkbox" id="notifyEnabled"><span><strong>Browser-varsler</strong><small>Varsle når anbefalt startdato passeres, ved hast og ved kritisk status.</small></span></label>
+      <label class="toggle-field"><input type="checkbox" id="rotateTenants"><span><strong>Roter kunder i dashboard-modus</strong><small>Bytt automatisk mellom kunder som trenger oppmerksomhet.</small></span></label>
+      <label class="field">Rotasjon<select id="rotateSeconds"><option value="15">15 sekunder</option><option value="30">30 sekunder</option><option value="60">60 sekunder</option></select></label>
+    </div>
+    <div class="notice"><strong>Om anbefalingene</strong><p>Startvinduer er operative Cloud247-anbefalinger, ikke formelle frister fra Apple eller Microsoft. De er bevisst konservative for å gi tid til endringsvindu, kundekontakt og verifisering.</p></div>
+    <div class="notice"><strong>Sikkerhet</strong><p>Dashboardet bruker Microsoft Entra ID og OAuth authorization code flow med PKCE. Access- og refresh-token lagres bare i sessionStorage. Worker validerer signatur, issuer, tenant, audience, klient-app og scope før API-et svarer.</p></div>
+    <div class="dialog-actions"><button class="secondary-button" value="cancel" type="button" id="cancelSettings">Avbryt</button><button class="primary-button" type="submit">Lagre innstillinger</button></div>
+  </form>
+</dialog>
+
+<dialog id="confirmDialog" class="confirm-dialog"><form method="dialog"><h2 id="confirmTitle">Bekreft</h2><p id="confirmText"></p><div class="dialog-actions"><button class="secondary-button" value="cancel">Avbryt</button><button class="danger-button" value="confirm">Fortsett</button></div></form></dialog>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
