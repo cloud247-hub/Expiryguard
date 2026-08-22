@@ -1,19 +1,8 @@
-# ExpiryGuard
+# ExpiryGuard V5.1 frontend
 
-## Microsoft-innlogging
+- `index.html` - management
+- `customer.html` - customer portal
 
-## Hva brukeren opplever
+Both use Microsoft authorization code + PKCE. Management authorization and customer Viewer/Admin roles are enforced by the Worker, not by frontend JavaScript.
 
-- Før dashboardet vises: **Logg inn med Microsoft**.
-- Brukeren velger en konto fra management-tenant.
-- Entra sender authorization code tilbake til SPA-en.
-- SPA-en løser inn koden med PKCE og får et access token til ExpiryGuard API.
-- Worker validerer tokenet før data returneres.
-- Innlogget navn/konto vises i headeren.
-- `Logg ut` tømmer lokal ExpiryGuard-session.
-
-Access- og refresh-token lagres bare i `sessionStorage`, så de forsvinner når fanens session avsluttes. Frontend bruker aldri ID-token som API-autorisasjon; Worker mottar access token for det eksponerte API-scope-et.
-
-## Kunde-consent
-
-Når du velger **Legg til kunde**, brukes den separate Graph Connector-appregistreringen på Worker-siden. Kunden gir admin consent til Microsoft Graph application permission. Dette er uavhengig av hvem som logger inn i ExpiryGuard-dashboardet.
+Customer first sign-in can return `CUSTOMER_ACCESS_PENDING`. The frontend keeps the Microsoft session and explains that management approval is required. After approval, refreshing the page opens the customer's own tenant.
