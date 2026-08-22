@@ -1,6 +1,6 @@
 window.EXPIRYGUARD_CONFIG = Object.freeze({
   // Cloudflare Worker URL after deploy.
-  apiBase: 'https://expiryguard-api.YOUR-SUBDOMAIN.workers.dev',
+  apiBase: 'https://cloud247-expiryguard-api.sebastian-be1.workers.dev',
   appUrl: 'https://expiry.cloud247.no/',
   managementUrl: 'https://expiry.cloud247.no/',
   customerPortalUrl: 'https://expiry.cloud247.no/customer.html',
