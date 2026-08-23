@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE = 'expiryguard-v5-1-static-v2-d1-rbac';
+const CACHE = 'expiryguard-v5-1-5-app-rbac';
 const STATIC_ASSETS = [
   './styles.css',
   './app.js',
@@ -32,7 +32,7 @@ self.addEventListener('fetch', event => {
 
   const url = new URL(request.url);
 
-  // V5.1 security rule: never intercept/cache API calls, OAuth calls,
+  // V5.1.5 security rule: never intercept/cache API calls, OAuth calls,
   // cross-origin traffic, navigations, config.js or authenticated requests.
   if (url.origin !== self.location.origin) return;
   if (request.headers.has('Authorization')) return;

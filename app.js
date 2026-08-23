@@ -7,13 +7,9 @@
   const L = (nb, en) => i18n.getLanguage() === 'en' ? en : nb;
   const tr = value => i18n.text(String(value ?? ''));
   const API_BASE = String(cfg.apiBase || '').replace(/\/$/, '');
-  const PORTAL_MODE = document.body?.dataset?.portalMode === 'customer' ? 'customer' : 'management';
   const SETTINGS_KEY = 'cloud247-expiryguard-v5-settings';
   const NOTIFY_KEY = 'cloud247-expiryguard-v5-notify-state';
-  const AUTH_KEY = `cloud247-expiryguard-v5-${PORTAL_MODE}-auth`;
-  const PKCE_KEY = `cloud247-expiryguard-v5-${PORTAL_MODE}-pkce`;
-  const authCfg = cfg.auth || {};
-  const customerAuthCfg = cfg.customerAuth || {};
+  const AUTH_KEY = 'cloud247-expiryguard-v5.1.5-session';
   const HOUR = 3600000;
   const DAY = 86400000;
 
@@ -122,133 +118,75 @@
   function saveSettings() { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); }
   function authSession() { try { return JSON.parse(sessionStorage.getItem(AUTH_KEY) || 'null'); } catch { return null; } }
   function setAuthSession(v) { if (v) sessionStorage.setItem(AUTH_KEY, JSON.stringify(v)); else sessionStorage.removeItem(AUTH_KEY); }
-  function isManagement() { return currentUser?.mode === 'management'; }
-  function isCustomer() { return currentUser?.mode === 'customer'; }
-  function canWrite() { return isManagement() || currentUser?.role === 'customer_admin'; }
-  function loginCfg(mode) {
-    if (mode === 'customer') {
-      const clientId = customerAuthCfg.clientId || '';
-      return {
-        authority: customerAuthCfg.authority || 'organizations',
-        spaClientId: customerAuthCfg.spaClientId || clientId,
-        apiClientId: customerAuthCfg.apiClientId || clientId,
-        apiScope: customerAuthCfg.apiScope || (clientId ? `api://${clientId}/access_as_user` : '')
-      };
-    }
-    return { authority: authCfg.tenantId, spaClientId: authCfg.spaClientId, apiClientId: authCfg.apiClientId, apiScope: authCfg.apiScope };
-  }
-  function authConfigured(mode = 'management') {
-    const c = loginCfg(mode);
-    return [c.authority, c.spaClientId, c.apiClientId, c.apiScope].every(v => v && !String(v).includes('YOUR_'));
-  }
+  function isManagement() { return currentUser?.mode === 'superadmin' || currentUser?.isAdmin === true; }
+  function isCustomer() { return currentUser?.mode === 'tenant'; }
+  function isTenantAdmin() { return currentUser?.role === 'tenant_admin'; }
+  function isPending() { return currentUser?.role === 'pending'; }
+  function canManagePortalUsers() { return isManagement() || isTenantAdmin(); }
+  function canWrite() { return isManagement() || ['tenant_admin', 'tenant_editor'].includes(currentUser?.role); }
   function toast(msg) { els.toast.textContent = tr(msg); els.toast.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => els.toast.classList.remove('show'), 2800); }
   function esc(v = '') { return String(v).replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c])); }
-  function randomBase64Url(bytes = 48) { const a = new Uint8Array(bytes); crypto.getRandomValues(a); return bytesToBase64Url(a); }
-  function bytesToBase64Url(bytes) { let s = ''; for (const b of bytes) s += String.fromCharCode(b); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, ''); }
-  async function sha256Base64Url(value) { return bytesToBase64Url(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value)))); }
-  function redirectUri() {
-    const current = `${location.origin}${location.pathname}`;
-    const local = ['localhost', '127.0.0.1'].includes(location.hostname);
-    if (local) return current;
-    const explicit = PORTAL_MODE === 'customer' ? cfg.customerPortalUrl : (cfg.managementUrl || cfg.appUrl);
-    return String(explicit || current).replace(/#.*$/, '');
-  }
-  function authScopes(mode) { return ['openid', 'profile', 'email', 'offline_access', loginCfg(mode).apiScope].join(' '); }
-  function tokenEndpoint(mode) { return `https://login.microsoftonline.com/${encodeURIComponent(loginCfg(mode).authority)}/oauth2/v2.0/token`; }
 
-  async function validateAuthConfiguration(mode = 'management') {
-    if (!authConfigured(mode)) throw new Error(mode === 'customer' ? 'Kundeportal-innlogging er ikke konfigurert i config.js.' : 'Management-innlogging er ikke konfigurert i config.js.');
+  async function validateAuthConfiguration() {
     if (!API_BASE || API_BASE.includes('YOUR-SUBDOMAIN')) throw new Error('Worker-URL er ikke konfigurert i config.js.');
     const response = await fetch(`${API_BASE}/api/config`, { headers: { Accept: 'application/json' } });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error || `Worker config-feil (${response.status})`);
-    const c = loginCfg(mode);
-    if (mode === 'management' && data.managementAllowlistConfigured === false) throw new Error('Worker mangler management-allowlist. Sett AUTH_ALLOWED_USER_IDS til Object ID for godkjente management-brukere.');
-    const pairs = mode === 'customer' ? [
-      ['Customer Portal SPA client ID', c.spaClientId, data.customerAuthSpaClientId],
-      ['Customer Portal API client ID', c.apiClientId, data.customerAuthApiClientId],
-      ['Customer Portal API scope', c.apiScope, data.customerAuthScope]
-    ] : [
-      ['management tenant', c.authority, data.authTenantId],
-      ['Dashboard SPA client ID', c.spaClientId, data.authSpaClientId],
-      ['Dashboard API client ID', c.apiClientId, data.authApiClientId],
-      ['API scope', c.apiScope, data.authScope]
-    ];
-    for (const [label, front, back] of pairs) if (String(front || '').toLowerCase() !== String(back || '').toLowerCase()) throw new Error(`Frontend og Worker har ulik ${label}.`);
+    if (data.authMode !== 'microsoft-entra-assignment-app-rbac') throw new Error('Worker kjører ikke ExpiryGuard assignment + app RBAC.');
+    if (!data.portalAuthClientId) throw new Error('Worker mangler GRAPH_CLIENT_ID / ExpiryGuard app client ID.');
     return data;
   }
 
-  async function beginMicrosoftLogin(mode = 'management') {
-    try { await validateAuthConfiguration(mode); } catch (err) { setAuthStatus(err.message || 'Auth-konfigurasjonen er ugyldig.', true); return; }
-    const c = loginCfg(mode);
-    const verifier = randomBase64Url(64), state = randomBase64Url(32);
-    const challenge = await sha256Base64Url(verifier);
-    sessionStorage.setItem(PKCE_KEY, JSON.stringify({ verifier, state, mode, createdAt: Date.now() }));
-    const u = new URL(`https://login.microsoftonline.com/${encodeURIComponent(c.authority)}/oauth2/v2.0/authorize`);
-    u.searchParams.set('client_id', c.spaClientId);
-    u.searchParams.set('response_type', 'code');
-    u.searchParams.set('redirect_uri', redirectUri());
-    u.searchParams.set('response_mode', 'query');
-    u.searchParams.set('scope', authScopes(mode));
-    u.searchParams.set('code_challenge', challenge);
-    u.searchParams.set('code_challenge_method', 'S256');
-    u.searchParams.set('state', state);
-    u.searchParams.set('prompt', 'select_account');
-    location.assign(u.toString());
+  async function beginMicrosoftLogin() {
+    try { await validateAuthConfiguration(); } catch (err) { setAuthStatus(err.message || 'Auth-konfigurasjonen er ugyldig.', true); return; }
+    const returnUrl = `${location.origin}${location.pathname}`;
+    location.assign(`${API_BASE}/api/auth/start?return=${encodeURIComponent(returnUrl)}`);
   }
 
   async function handleAuthCallback() {
     const p = new URLSearchParams(location.search);
-    const storedRaw = sessionStorage.getItem(PKCE_KEY); if (!storedRaw) return false;
-    let stored; try { stored = JSON.parse(storedRaw); } catch { sessionStorage.removeItem(PKCE_KEY); return false; }
-    if (!p.get('state') || p.get('state') !== stored.state) return false;
-    if (Date.now() - Number(stored.createdAt || 0) > 15 * 60 * 1000) { sessionStorage.removeItem(PKCE_KEY); throw new Error('Microsoft-innloggingen tok for lang tid. Prøv igjen.'); }
-    if (p.get('error')) { sessionStorage.removeItem(PKCE_KEY); cleanAuthQuery(); throw new Error(p.get('error_description') || p.get('error')); }
-    const code = p.get('code'); if (!code) return false;
-    const mode = stored.mode === 'customer' ? 'customer' : 'management';
-    if (mode !== PORTAL_MODE) { sessionStorage.removeItem(PKCE_KEY); cleanAuthQuery(); throw new Error('Innloggingen tilhører en annen ExpiryGuard-portal.'); }
-    const c = loginCfg(mode);
-    const body = new URLSearchParams({ client_id: c.spaClientId, grant_type: 'authorization_code', code, redirect_uri: redirectUri(), code_verifier: stored.verifier, scope: authScopes(mode) });
-    const response = await fetch(tokenEndpoint(mode), { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body });
+    const authError = p.get('auth_error');
+    if (authError) { cleanAuthQuery(); throw new Error(authError); }
+    const code = p.get('login_code');
+    if (!code) return false;
+    const response = await fetch(`${API_BASE}/api/auth/session`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ code })
+    });
     const data = await response.json().catch(() => ({}));
-    sessionStorage.removeItem(PKCE_KEY); cleanAuthQuery();
-    if (!response.ok || !data.access_token) throw new Error(data.error_description || data.error || 'Kunne ikke hente Microsoft access token');
-    setAuthSession({ mode, accessToken: data.access_token, refreshToken: data.refresh_token || '', expiresAt: Date.now() + Number(data.expires_in || 3600) * 1000 });
+    cleanAuthQuery();
+    if (!response.ok || !data.accessToken) throw new Error(data.error || 'Kunne ikke opprette ExpiryGuard-session.');
+    setAuthSession({ accessToken: data.accessToken, expiresAt: data.expiresAt || '' });
     return true;
   }
 
   function cleanAuthQuery() { history.replaceState({}, '', `${location.pathname}${location.hash}`); }
-  async function refreshMicrosoftToken(force = false) {
-    const current = authSession(); if (!current) return '';
-    if (!force && current.accessToken && Number(current.expiresAt || 0) - Date.now() > 2 * 60 * 1000) return current.accessToken;
-    if (!current.refreshToken) return '';
-    const mode = current.mode === 'customer' ? 'customer' : 'management';
-    const c = loginCfg(mode);
-    const body = new URLSearchParams({ client_id: c.spaClientId, grant_type: 'refresh_token', refresh_token: current.refreshToken, scope: authScopes(mode) });
-    const response = await fetch(tokenEndpoint(mode), { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok || !data.access_token) { setAuthSession(null); return ''; }
-    setAuthSession({ mode, accessToken: data.access_token, refreshToken: data.refresh_token || current.refreshToken, expiresAt: Date.now() + Number(data.expires_in || 3600) * 1000 });
-    return data.access_token;
+  async function accessToken() {
+    const current = authSession();
+    if (!current?.accessToken) return '';
+    if (current.expiresAt && new Date(current.expiresAt).getTime() <= Date.now() + 5000) { setAuthSession(null); return ''; }
+    return current.accessToken;
   }
-  async function accessToken() { return refreshMicrosoftToken(false); }
   function setAuthStatus(message, error = false) { els.authStatus.textContent = tr(message); els.authStatus.classList.toggle('auth-error', error); }
-  function showAuthGate(message = PORTAL_MODE === 'customer' ? 'Logg inn for å åpne kundeportalen.' : 'Logg inn for å åpne management-dashboardet.', error = false) { els.authGate.hidden = false; els.appMain.hidden = true; els.appFooter.hidden = true; els.authUser.hidden = true; setAuthStatus(message, error); }
+  function showAuthGate(message = 'Logg inn med Microsoft for å åpne ExpiryGuard.', error = false) { els.authGate.hidden = false; els.appMain.hidden = true; els.appFooter.hidden = true; els.authUser.hidden = true; setAuthStatus(message, error); }
   function showApp() { els.authGate.hidden = true; els.appMain.hidden = false; els.appFooter.hidden = false; }
-  function signOutLocal() { setAuthSession(null); sessionStorage.removeItem(PKCE_KEY); currentUser = null; tenants = []; items = []; events = []; document.body.classList.remove('customer-mode', 'viewer-mode'); showAuthGate('Du er logget ut av ExpiryGuard.'); }
+  function signOutLocal() {
+    const current = authSession();
+    if (current?.accessToken && API_BASE) {
+      fetch(`${API_BASE}/api/auth/logout`, { method: 'POST', headers: { Authorization: `Bearer ${current.accessToken}` }, keepalive: true }).catch(() => {});
+    }
+    setAuthSession(null); currentUser = null; tenants = []; items = []; events = [];
+    document.body.classList.remove('customer-mode', 'viewer-mode');
+    showAuthGate('Du er logget ut av ExpiryGuard.');
+  }
 
-  async function api(path, options = {}, retry = true) {
+  async function api(path, options = {}) {
     if (!API_BASE || API_BASE.includes('YOUR-SUBDOMAIN')) throw new Error('API er ikke konfigurert i config.js');
     const token = await accessToken();
     if (!token) { signOutLocal(); const err = new Error('Microsoft-innlogging kreves'); err.status = 401; throw err; }
     const headers = { 'Content-Type': 'application/json', ...(options.headers || {}), Authorization: `Bearer ${token}` };
     const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
     const text = await response.text(); let data = {}; try { data = text ? JSON.parse(text) : {}; } catch { data = { message: text }; }
-    if (response.status === 401 && retry) {
-      const fresh = await refreshMicrosoftToken(true);
-      if (fresh) return api(path, options, false);
-      signOutLocal();
-    }
+    if (response.status === 401) signOutLocal();
     if (!response.ok) { const err = new Error(data.error || data.message || `HTTP ${response.status}`); err.status = response.status; err.code = data.code || ''; err.data = data; throw err; }
     return data;
   }
@@ -265,15 +203,17 @@
     if (els.exportJson) els.exportJson.hidden = !isManagement();
     if (els.exportCsv) els.exportCsv.hidden = !isManagement();
     if (els.exportIcs) els.exportIcs.hidden = !isManagement();
-    if (els.portalUsers) els.portalUsers.hidden = !isManagement();
+    if (els.portalUsers) els.portalUsers.hidden = !canManagePortalUsers();
     if (els.auditLog) els.auditLog.hidden = !isManagement();
     if (els.addManual) els.addManual.hidden = !write;
     if (els.workflowPanel) els.workflowPanel.hidden = !write;
     if (els.accessBanner) {
       els.accessBanner.hidden = !customer;
-      if (customer) els.accessBanner.innerHTML = currentUser?.role === 'customer_admin'
-        ? `<strong>${L('Kundeportal · Customer Admin', 'Customer portal · Customer Admin')}</strong><span>${L(`Du ser kun ${esc(currentUser.customerName || 'din tenant')} og kan oppdatere arbeidsstatus/notater og manuelle elementer.`, `You can only see ${esc(currentUser.customerName || 'your tenant')} and can update work status/notes and manual items.`)}</span>`
-        : `<strong>${L('Kundeportal · Customer Viewer', 'Customer portal · Customer Viewer')}</strong><span>${L(`Du ser kun ${esc(currentUser?.customerName || 'din tenant')} og har lesetilgang.`, `You can only see ${esc(currentUser?.customerName || 'your tenant')} and have read-only access.`)}</span>`;
+      if (customer) {
+        const role = currentUser?.roleLabel || L('Venter på rolle', 'Waiting for role');
+        const writeText = isPending() ? L('Entra-tilgang er godkjent, men en Tenant Admin må tildele rollen din i ExpiryGuard før kundedata vises.', 'Entra access is approved, but a Tenant Admin must assign your role in ExpiryGuard before customer data is shown.') : write ? L('Du kan oppdatere arbeidsstatus, notater og manuelle elementer.', 'You can update work status, notes and manual items.') : L('Du har lesetilgang.', 'You have read-only access.');
+        els.accessBanner.innerHTML = `<strong>${esc(role)} · ${esc(currentUser.customerName || L('Din tenant', 'Your tenant'))}</strong><span>${L('Microsoft Entra bestemmer hvem som får logge inn. ExpiryGuard bestemmer rollen inne i appen.', 'Microsoft Entra controls who can sign in. ExpiryGuard controls the role inside the app.')} ${writeText}</span>`;
+      }
     }
   }
 
@@ -499,16 +439,18 @@
     els.activityList.innerHTML = list.map(e => `<div class="activity-row"><span class="activity-icon">${e.eventType === 'renewal_detected' ? '✓' : e.eventType === 'workflow_changed' ? '↻' : '•'}</span><span><strong>${esc(e.message || e.eventType)}</strong><small>${esc(tenantName(e.tenantId))} · ${fmtDate(e.createdAt)}${e.newExpiresAt ? ` · ${L('ny dato', 'new date')} ${fmtDate(e.newExpiresAt, false)}` : ''}</small></span></div>`).join('');
   }
 
-  function portalUserStatusLabel(status) {
-    return i18n.getLanguage() === 'en' ? ({ pending: 'Pending approval', active: 'Active', denied: 'Denied' })[status] || status : ({ pending: 'Venter på godkjenning', active: 'Aktiv', denied: 'Avvist' })[status] || status;
-  }
-
-  function portalUserRoleLabel(role) {
-    return role === 'admin' ? 'Customer Admin' : 'Customer Viewer';
+  function portalRoleLabel(role) {
+    return ({ pending: L('Venter på rolle', 'Waiting for role'), viewer: 'Tenant Viewer', editor: 'Tenant Editor', admin: 'Tenant Admin' })[role] || L('Venter på rolle', 'Waiting for role');
   }
 
   function renderPortalUsersTenantFilter() {
     if (!els.portalUsersTenantFilter) return;
+    if (!isManagement()) {
+      els.portalUsersTenantFilter.innerHTML = `<option value="${esc(currentUser?.tenantId || '')}">${esc(currentUser?.customerName || L('Din tenant', 'Your tenant'))}</option>`;
+      els.portalUsersTenantFilter.disabled = true;
+      return;
+    }
+    els.portalUsersTenantFilter.disabled = false;
     const current = els.portalUsersTenantFilter.value;
     els.portalUsersTenantFilter.innerHTML = `<option value="">${L('Alle kunder', 'All customers')}</option>${tenants.map(t => `<option value="${esc(t.id)}">${esc(t.displayName)}</option>`).join('')}`;
     if ([...els.portalUsersTenantFilter.options].some(o => o.value === current)) els.portalUsersTenantFilter.value = current;
@@ -517,46 +459,46 @@
   function renderPortalUsers() {
     if (!els.portalUsersList) return;
     renderPortalUsersTenantFilter();
-    const tenantFilter = els.portalUsersTenantFilter?.value || '';
+    const tenantFilter = isManagement() ? (els.portalUsersTenantFilter?.value || '') : (currentUser?.tenantId || '');
     const visible = portalUsers.filter(u => !tenantFilter || u.tenantId === tenantFilter);
-    const counts = visible.reduce((a, u) => { a.total++; if (u.status === 'pending') a.pending++; if (u.status === 'active') a.active++; if (u.status === 'denied') a.denied++; return a; }, { total: 0, pending: 0, active: 0, denied: 0 });
-    if (els.portalUsersSummary) els.portalUsersSummary.textContent = L(`${counts.pending} venter · ${counts.active} aktive · ${counts.denied} avvist`, `${counts.pending} pending · ${counts.active} active · ${counts.denied} denied`);
-    if (!visible.length) { els.portalUsersList.innerHTML = `<div class="queue-empty">${L('Ingen portalbrukere ennå. Be kunden logge inn én gang for å registrere en tilgangsforespørsel.', 'No portal users yet. Ask the customer to sign in once to register an access request.')}</div>`; return; }
+    const counts = visible.reduce((a, u) => { a.total++; if (u.blocked) a.blocked++; else if (u.appRole === 'pending') a.pending++; else a.active++; return a; }, { total: 0, active: 0, pending: 0, blocked: 0 });
+    if (els.portalUsersSummary) els.portalUsersSummary.textContent = L(`${counts.active} aktive · ${counts.pending} venter · ${counts.blocked} blokkert`, `${counts.active} active · ${counts.pending} pending · ${counts.blocked} blocked`);
+    if (!visible.length) { els.portalUsersList.innerHTML = `<div class="queue-empty">${L('Ingen kjente brukere ennå. En bruker vises her etter at Entra har gitt tilgang og brukeren har forsøkt å logge inn én gang.', 'No known users yet. A user appears here after Entra grants access and the user attempts to sign in once.')}</div>`; return; }
     els.portalUsersList.innerHTML = visible.map(u => {
       const name = u.displayName || u.username || u.objectId;
       const tenant = u.tenantName || tenantName(u.tenantId);
-      const status = esc(u.status || 'pending');
-      const role = u.role === 'admin' ? 'admin' : 'viewer';
-      const approveViewer = `<button class="secondary-button portal-user-action" data-action="activate-viewer" type="button">${L('Godkjenn Viewer', 'Approve Viewer')}</button>`;
-      const approveAdmin = `<button class="secondary-button portal-user-action" data-action="activate-admin" type="button">${L('Godkjenn Admin', 'Approve Admin')}</button>`;
-      const switchRole = u.status === 'active' ? `<button class="secondary-button portal-user-action" data-action="${role === 'admin' ? 'activate-viewer' : 'activate-admin'}" type="button">${role === 'admin' ? L('Gjør til Viewer', 'Make Viewer') : L('Gjør til Admin', 'Make Admin')}</button>` : '';
-      const deny = u.status !== 'denied' ? `<button class="danger-button portal-user-action" data-action="deny" type="button">${L('Avvis', 'Deny')}</button>` : '';
-      const remove = `<button class="secondary-button portal-user-action" data-action="remove" type="button">${L('Fjern', 'Remove')}</button>`;
-      const actions = u.status === 'pending' ? approveViewer + approveAdmin + deny : u.status === 'active' ? switchRole + deny + remove : approveViewer + approveAdmin + remove;
-      return `<div class="portal-user-row" data-tenant="${esc(u.tenantId)}" data-oid="${esc(u.objectId)}"><div class="portal-user-main"><strong>${esc(name)}</strong><small>${esc(u.username || '')}</small><small>${esc(tenant)} · Object ID ${esc(u.objectId)}</small><div class="portal-user-meta"><span class="portal-user-pill ${status}">${esc(portalUserStatusLabel(u.status))}</span><span class="portal-user-pill">${esc(portalUserRoleLabel(role))}</span>${u.lastSeenAt ? `<span class="portal-user-pill">${L('Sist sett', 'Last seen')}: ${fmtDate(u.lastSeenAt)}</span>` : ''}</div></div><div class="portal-user-actions">${actions}</div></div>`;
+      const appRole = portalRoleLabel(u.appRole);
+      const effective = u.blocked ? L('Blokkert av Cloud247', 'Blocked by Cloud247') : appRole;
+      const selfManaged = !isManagement() && u.objectId === currentUser?.objectId;
+      const roleActions = selfManaged ? `<span class="portal-user-pill">${L('Din egen rolle endres av en annen Tenant Admin eller Cloud247', 'Your own role is changed by another Tenant Admin or Cloud247')}</span>` : `<button class="secondary-button portal-user-action" data-action="viewer" type="button">Viewer</button><button class="secondary-button portal-user-action" data-action="editor" type="button">Editor</button><button class="secondary-button portal-user-action" data-action="admin" type="button">Tenant Admin</button><button class="secondary-button portal-user-action" data-action="pending" type="button">${L('Fjern rolle', 'Remove role')}</button>`;
+      const cloudActions = isManagement() ? `${u.blocked ? `<button class="secondary-button portal-user-action" data-action="unblock" type="button">${L('Opphev blokkering', 'Unblock')}</button>` : `<button class="danger-button portal-user-action" data-action="block" type="button">${L('Blokker', 'Block')}</button>`}<button class="secondary-button portal-user-action" data-action="remove" type="button">${L('Fjern fra oversikt', 'Remove from list')}</button>` : '';
+      return `<div class="portal-user-row" data-tenant="${esc(u.tenantId)}" data-oid="${esc(u.objectId)}"><div class="portal-user-main"><strong>${esc(name)}</strong><small>${esc(u.username || '')}</small><small>${esc(tenant)} · Object ID ${esc(u.objectId)}</small><div class="portal-user-meta"><span class="portal-user-pill">${L('App-rolle', 'App role')}: ${esc(appRole)}</span><span class="portal-user-pill">${L('Entra-tilgang', 'Entra access')}: ${L('bekreftet ved innlogging', 'confirmed by sign-in')}</span><span class="portal-user-pill ${u.blocked ? 'denied' : (u.appRole === 'pending' ? 'pending' : 'active')}">${L('Effektiv', 'Effective')}: ${esc(effective)}</span>${u.lastSeenAt ? `<span class="portal-user-pill">${L('Sist sett', 'Last seen')}: ${fmtDate(u.lastSeenAt)}</span>` : ''}</div></div><div class="portal-user-actions">${roleActions}${cloudActions}</div></div>`;
     }).join('');
   }
 
   async function loadPortalUsers() {
-    if (!ensureAdmin()) return;
-    if (els.portalUsersList) els.portalUsersList.innerHTML = `<div class="queue-empty">${L('Henter portalbrukere…', 'Loading portal users…')}</div>`;
+    if (!canManagePortalUsers()) return;
+    if (els.portalUsersList) els.portalUsersList.innerHTML = `<div class="queue-empty">${L('Henter brukere og roller…', 'Loading users and roles…')}</div>`;
     try { const result = await api('/api/portal-users'); portalUsers = result.users || []; renderPortalUsers(); }
     catch (err) { portalUsers = []; if (els.portalUsersList) els.portalUsersList.innerHTML = `<div class="queue-empty">${esc(err.message || L('Kunne ikke hente portalbrukere', 'Could not load portal users'))}</div>`; }
   }
 
   async function changePortalUser(row, action) {
-    if (!ensureAdmin()) return;
+    if (!canManagePortalUsers()) return;
     const tenantId = row?.dataset?.tenant || ''; const oid = row?.dataset?.oid || '';
     if (!tenantId || !oid) return;
     try {
-      if (action === 'remove') await api(`/api/portal-users/${encodeURIComponent(tenantId)}/${encodeURIComponent(oid)}`, { method: 'DELETE' });
-      else {
-        const role = action === 'activate-admin' ? 'admin' : 'viewer';
-        const status = action === 'deny' ? 'denied' : 'active';
-        await api(`/api/portal-users/${encodeURIComponent(tenantId)}/${encodeURIComponent(oid)}`, { method: 'PATCH', body: JSON.stringify({ role, status }) });
+      if (action === 'remove') {
+        if (!ensureAdmin()) return;
+        await api(`/api/portal-users/${encodeURIComponent(tenantId)}/${encodeURIComponent(oid)}`, { method: 'DELETE' });
+      } else {
+        const payload = { appRole: ['pending', 'viewer', 'editor', 'admin'].includes(action) ? action : (portalUsers.find(u => u.tenantId === tenantId && u.objectId === oid)?.appRole || 'pending') };
+        if (action === 'block') payload.blocked = true;
+        if (action === 'unblock') payload.blocked = false;
+        await api(`/api/portal-users/${encodeURIComponent(tenantId)}/${encodeURIComponent(oid)}`, { method: 'PATCH', body: JSON.stringify(payload) });
       }
-      toast(L('Portaltilgang oppdatert', 'Portal access updated')); await loadPortalUsers();
-    } catch (err) { toast(err.message || L('Kunne ikke oppdatere portaltilgang', 'Could not update portal access')); }
+      toast(L('Tilgang oppdatert', 'Access updated')); await loadPortalUsers();
+    } catch (err) { toast(err.message || L('Kunne ikke oppdatere tilgang', 'Could not update access')); }
   }
 
   function auditActionLabel(action) {
@@ -571,9 +513,8 @@
       'manual.deleted': L('Manuelt element slettet', 'Manual item deleted'),
       'manual.bulk_imported': L('Bulkimport gjennomført', 'Bulk import completed'),
       'workflow.updated': L('Arbeidsstatus oppdatert', 'Work status updated'),
-      'portal_user.active': L('Portalbruker godkjent', 'Portal user approved'),
-      'portal_user.denied': L('Portalbruker avvist', 'Portal user denied'),
-      'portal_user.pending': L('Portalbruker satt til ventende', 'Portal user set to pending'),
+      'portal_user.override_updated': L('Rolleoverstyring oppdatert', 'Role override updated'),
+      'portal_user.blocked': L('Portalbruker blokkert', 'Portal user blocked'),
       'portal_user.removed': L('Portalbruker fjernet', 'Portal user removed'),
       'request.failed': L('Avvist eller feilet endringsforsøk', 'Rejected or failed change request')
     };
@@ -663,8 +604,8 @@
     } catch (err) { toast(err.message || 'Synkronisering feilet'); }
   }
 
-  function ensureAdmin() { if (isManagement()) return true; toast('Denne handlingen krever Cloud247 Admin'); return false; }
-  function ensureWrite() { if (canWrite()) return true; toast('Customer Viewer har kun lesetilgang'); return false; }
+  function ensureAdmin() { if (isManagement()) return true; toast('Denne handlingen krever Cloud247 Super Admin'); return false; }
+  function ensureWrite() { if (canWrite()) return true; toast('Tenant Viewer har kun lesetilgang'); return false; }
   function openSettings() {
     els.defaultReminder.value = String(settings.defaultReminder || 30);
     els.notificationCadence.value = String(settings.notificationCadence || 12);
@@ -865,7 +806,7 @@
     try {
       const pending = JSON.parse(raw); toast('Bekrefter Graph-tilgang…');
       await api('/api/tenants/confirm', { method: 'POST', body: JSON.stringify(pending) });
-      sessionStorage.removeItem('expiryguard-pending-consent'); toast('Kunden er koblet til');
+      sessionStorage.removeItem('expiryguard-pending-consent'); toast('Kunden er koblet til. Sett Assignment required = Yes og tildel brukere i kundens Enterprise Application. Roller tildeles i ExpiryGuard.');
       await refresh({ quiet: true }); await sync(pending.tenantId);
     } catch (err) { toast(err.message || 'Kunne ikke fullføre tenant-tilkoblingen'); }
   }
@@ -875,7 +816,7 @@
   function icsDate(v) { const d = parseDate(v); return d ? d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z') : ''; }
   function exportCalendar() {
     const now = icsDate(new Date().toISOString());
-    const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Cloud247//ExpiryGuard v5.1//NO', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'X-WR-CALNAME:Cloud247 ExpiryGuard'];
+    const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Cloud247//ExpiryGuard v5.1.5//NO', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'X-WR-CALNAME:Cloud247 ExpiryGuard'];
     for (const item of items) {
       const p = policyFor(item);
       const tenant = tenantName(item.tenantId);
@@ -885,7 +826,7 @@
       lines.push('BEGIN:VEVENT', `UID:${icsEscape(item.id)}-expiry@expiryguard.cloud247.no`, `DTSTAMP:${now}`, `DTSTART:${icsDate(item.expiresAt)}`, `SUMMARY:${icsEscape(L(`ExpiryGuard: UTLØPER – ${item.name}`, `ExpiryGuard: EXPIRES – ${item.name}`))}`, `DESCRIPTION:${icsEscape(desc)}`, 'END:VEVENT');
     }
     lines.push('END:VCALENDAR');
-    download(`expiryguard-v5.1-${new Date().toISOString().slice(0, 10)}.ics`, lines.join('\r\n'), 'text/calendar;charset=utf-8');
+    download(`expiryguard-v5.1.5-${new Date().toISOString().slice(0, 10)}.ics`, lines.join('\r\n'), 'text/calendar;charset=utf-8');
   }
 
   function download(name, text, type) { const blob = new Blob([text], { type }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); }
@@ -914,7 +855,7 @@
   els.fullscreen.addEventListener('click', async () => { try { if (!document.fullscreenElement) await document.documentElement.requestFullscreen(); else await document.exitFullscreen(); } catch { toast('Fullskjerm støttes ikke i denne nettleseren'); } });
   els.displayMode.addEventListener('click', () => { document.body.classList.toggle('display-mode'); els.displayMode.textContent = document.body.classList.contains('display-mode') ? L('← Avslutt dashboard-modus', '← Exit dashboard mode') : L('◫ Dashboard-modus', '◫ Dashboard mode'); renderItems(); startRotation(); });
   els.settings.addEventListener('click', openSettings); els.cancelSettings.addEventListener('click', () => els.settingsDialog.close());
-  els.portalUsers?.addEventListener('click', async () => { if (!ensureAdmin()) return; els.portalUsersDialog.showModal(); await loadPortalUsers(); });
+  els.portalUsers?.addEventListener('click', async () => { if (!canManagePortalUsers()) return; els.portalUsersDialog.showModal(); await loadPortalUsers(); });
   els.refreshPortalUsers?.addEventListener('click', loadPortalUsers);
   els.portalUsersTenantFilter?.addEventListener('change', renderPortalUsers);
   els.portalUsersList?.addEventListener('click', async e => { const button = e.target.closest('.portal-user-action'); if (!button) return; const row = button.closest('.portal-user-row'); await changePortalUser(row, button.dataset.action); });
@@ -965,12 +906,12 @@
   });
 
   els.search.addEventListener('input', renderItems); els.filter.addEventListener('change', renderItems);
-  els.exportJson.addEventListener('click', () => download(`expiryguard-v5.1-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify({ version: '5.1', exportedAt: new Date().toISOString(), tenants, items, events }, null, 2), 'application/json'));
+  els.exportJson.addEventListener('click', () => download(`expiryguard-v5.1.5-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify({ version: '5.1.5', exportedAt: new Date().toISOString(), tenants, items, events }, null, 2), 'application/json'));
   els.exportIcs.addEventListener('click', exportCalendar);
   els.exportCsv.addEventListener('click', () => {
     const h = ['tenantId', 'tenantName', 'name', 'kind', 'source', 'expiresAt', 'recommendedStartAt', 'stage', 'impact', 'workflowState', 'owner', 'reminderDays', 'urgentDays', 'criticalDays', 'url', 'notes'];
     const rows = [h.join(','), ...items.map(i => h.map(k => csvCell(k === 'tenantName' ? tenantName(i.tenantId) : k === 'recommendedStartAt' ? recommendedStartAt(i) : k === 'stage' ? stageFor(i) : i[k])).join(','))];
-    download(`expiryguard-v5.1-${new Date().toISOString().slice(0, 10)}.csv`, rows.join('\n'), 'text/csv;charset=utf-8');
+    download(`expiryguard-v5.1.5-${new Date().toISOString().slice(0, 10)}.csv`, rows.join('\n'), 'text/csv;charset=utf-8');
   });
   els.importFile.addEventListener('change', async () => {
     const file = els.importFile.files[0]; if (!file) return; if (!ensureAdmin()) { els.importFile.value = ''; return; }
@@ -986,13 +927,11 @@
   async function loadSignedInUser() {
     const result = await api('/api/me');
     const user = result.user || {};
-    if (PORTAL_MODE === 'management' && user.mode !== 'management') throw new Error('Denne siden er kun for Cloud247 management.');
-    if (PORTAL_MODE === 'customer' && user.mode !== 'customer') throw new Error('Denne siden er kun for kundeportal-brukere.');
     currentUser = user;
     els.authUser.hidden = false;
     els.authUserName.textContent = user.name || 'Microsoft-bruker';
-    els.authUserAccount.textContent = user.mode === 'customer' && user.customerName ? `${user.customerName} · ${user.username || user.objectId || ''}` : (user.username || user.objectId || '');
-    els.authUserRole.textContent = user.roleLabel || (user.mode === 'customer' ? 'Customer Viewer' : 'Cloud247 Admin');
+    els.authUserAccount.textContent = user.customerName ? `${user.customerName} · ${user.username || user.objectId || ''}` : (user.username || user.objectId || '');
+    els.authUserRole.textContent = user.roleLabel || (user.isAdmin ? 'Cloud247 Super Admin' : 'Tenant Viewer');
     els.authAvatar.textContent = String(user.name || user.username || '?').trim().slice(0, 1).toUpperCase();
     applyAccessMode();
     return user;
@@ -1014,15 +953,14 @@
   async function init() {
     $('year').textContent = new Date().getFullYear();
     if ('serviceWorker' in navigator) { try { await navigator.serviceWorker.register('sw.js'); } catch {} }
-    if (els.signIn) els.signIn.addEventListener('click', () => beginMicrosoftLogin(PORTAL_MODE).catch(err => setAuthStatus(err.message || (PORTAL_MODE === 'customer' ? 'Kunne ikke starte kundeinnlogging' : 'Kunne ikke starte management-innlogging'), true)));
+    if (els.signIn) els.signIn.addEventListener('click', () => beginMicrosoftLogin().catch(err => setAuthStatus(err.message || 'Kunne ikke starte Microsoft-innlogging', true)));
     els.signOut.addEventListener('click', signOutLocal);
     try { await handleAuthCallback(); } catch (err) { showAuthGate(err.message || 'Microsoft-innlogging feilet', true); return; }
-    if (PORTAL_MODE === 'management') await handleConsentCallback();
+    await handleConsentCallback();
     if (!authSession()) {
-      if (!authConfigured(PORTAL_MODE)) { showAuthGate(PORTAL_MODE === 'customer' ? 'Kundeportal-innlogging er ikke konfigurert i config.js.' : 'Management-innlogging er ikke konfigurert i config.js.', true); return; }
       try {
-        await validateAuthConfiguration(PORTAL_MODE);
-        showAuthGate(PORTAL_MODE === 'customer' ? 'Logg inn med Microsoft for å åpne kundeportalen.' : 'Logg inn med management-kontoen for å åpne dashboardet.');
+        await validateAuthConfiguration();
+        showAuthGate('Logg inn med Microsoft. Kundebrukere bruker sin egen Entra-tenant og får kun tilgang til sin egen kunde.');
       } catch (err) { showAuthGate(err.message || 'Kunne ikke validere frontend mot Worker.', true); }
       return;
     }
@@ -1030,13 +968,9 @@
       await loadSignedInUser();
       showApp();
       if (isManagement()) await finalizePendingConsent();
-      await refresh({ quiet: true });
+      if (!isPending()) await refresh({ quiet: true });
+      else { tenants = []; items = []; events = []; render(); }
     } catch (err) {
-      if (PORTAL_MODE === 'customer' && err.code === 'CUSTOMER_ACCESS_PENDING') {
-        currentUser = null; tenants = []; items = []; events = [];
-        showAuthGate(err.message || L('Tilgangen din venter på godkjenning fra ExpiryGuard-administrator.', 'Your access is waiting for approval from the ExpiryGuard administrator.'), false);
-        return;
-      }
       signOutLocal();
       showAuthGate(err.message || 'Microsoft-innloggingen kunne ikke valideres av Worker.', true);
       return;

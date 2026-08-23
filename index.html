@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ExpiryGuard Management | Cloud247</title>
+  <title>ExpiryGuard | Cloud247</title>
   <meta name="description" content="Multi-tenant dashboard for Apple Push-sertifikater, ADE-tokens, Apps & Books/VPP-tokens og andre utløpsdatoer fra Microsoft Intune.">
   <meta name="theme-color" content="#061A2F">
   <meta name="referrer" content="no-referrer">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://login.microsoftonline.com https://cloud247-expiryguard-api.sebastian-be1.workers.dev; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src 'none'; worker-src 'self'; manifest-src 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://cloud247-expiryguard-api.sebastian-be1.workers.dev; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src 'none'; worker-src 'self'; manifest-src 'self'">
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -15,7 +15,7 @@
 <header class="site-header">
   <div class="shell header-inner">
     <a class="cloud-brand" href="https://cloud247.no/" aria-label="Cloud247 forside"><img src="assets/cloud247-logo.svg" alt="Cloud247 Technology"></a>
-    <div class="header-account"><div class="language-switcher" aria-label="Language / Språk"><button type="button" data-language="nb" title="Norsk" aria-pressed="false">NO</button><button type="button" data-language="en" title="English" aria-pressed="false">EN</button></div><span class="header-label">ExpiryGuard Management</span><div class="auth-user" id="authUser" hidden><span class="auth-avatar" id="authAvatar">?</span><span class="auth-user-copy"><strong id="authUserName">Microsoft</strong><small id="authUserAccount">–</small><small class="auth-role" id="authUserRole">–</small></span><button class="header-signout" id="signOutButton" type="button">Logg ut</button></div></div>
+    <div class="header-account"><div class="language-switcher" aria-label="Language / Språk"><button type="button" data-language="nb" title="Norsk" aria-pressed="false">NO</button><button type="button" data-language="en" title="English" aria-pressed="false">EN</button></div><span class="header-label">ExpiryGuard</span><div class="auth-user" id="authUser" hidden><span class="auth-avatar" id="authAvatar">?</span><span class="auth-user-copy"><strong id="authUserName">Microsoft</strong><small id="authUserAccount">–</small><small class="auth-role" id="authUserRole">–</small></span><button class="header-signout" id="signOutButton" type="button">Logg ut</button></div></div>
   </div>
 </header>
 
@@ -24,7 +24,7 @@
     <div class="auth-intro">
       <p class="cloud-eyebrow">CLOUD TOOLBOX</p>
       <h1>ExpiryGuard</h1>
-      <p>Hold kontroll på Apple Push-sertifikater, ADE- og VPP-tokens og andre utløpsdatoer på tvers av kundene dine.</p>
+      <p>Hold kontroll på Apple Push-sertifikater, ADE- og VPP-tokens og andre utløpsdatoer. Cloud247 får samlet oversikt, mens kundebrukere ser kun sin egen Microsoft-tenant.</p>
       <div class="hero-trust-row" aria-label="ExpiryGuard-funksjoner"><span>Microsoft Graph</span><span>Multi-tenant</span><span>Fornyelsesplan</span><span>Live nedtelling</span></div>
     </div>
     <article class="auth-card cloud-panel">
@@ -32,12 +32,12 @@
         <div>
           <p class="hero-card-kicker">MICROSOFT-INNLOGGING</p>
           <h2>Åpne dashboardet</h2>
-          <p>Logg inn med management-kontoen din for å administrere kunder og utløpsdata.</p>
+          <p>Logg inn med Microsoft-kontoen din. Cloud247 Super Admin ser alle kunder; kundebrukere får kun tilgang til sin egen tenant.</p>
         </div>
         <span class="auth-mark" aria-hidden="true">◷</span>
       </div>
       <button class="microsoft-button portal-login-button" id="signInButton" type="button"><span class="microsoft-logo" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span>Logg inn med Microsoft</span></button>
-      <small id="authStatus">Tilgang styres av godkjente Microsoft Object ID-er. Ingen passord lagres i ExpiryGuard.</small>
+      <small id="authStatus">Microsoft Entra styrer hvem som får logge inn. Rollen styres i ExpiryGuard. Ingen passord lagres i ExpiryGuard.</small>
     </article>
     <div class="auth-more-tools">
       <div class="more-tools-card portal-more-tools-card">
@@ -54,7 +54,7 @@
       <div class="hero-copy">
         <p class="eyebrow">CLOUD TOOLBOX</p>
         <h1>ExpiryGuard</h1>
-        <p class="lead">Se ikke bare når noe utløper – se <strong>når du bør begynne å fornye det</strong>. Multi-tenant oversikt med Microsoft Graph, handlingsvinduer, live nedtelling og sikker kundeportal.</p>
+        <p class="lead">Se ikke bare når noe utløper – se <strong>når du bør begynne å fornye det</strong>. Multi-tenant oversikt med Microsoft Graph, handlingsvinduer, live nedtelling og tenant-isolert tilgang.</p>
         <div class="hero-pills"><span>Microsoft Graph</span><span>Multi-tenant</span><span>Fornyelsesplan</span><span>Live nedtelling</span><span>Browser-varsler</span></div>
       </div>
       <article class="hero-card">
@@ -90,7 +90,7 @@
             <button class="secondary-button" id="exportJsonButton" type="button">Eksporter JSON</button>
             <button class="secondary-button" id="exportCsvButton" type="button">Eksporter CSV</button>
             <button class="secondary-button" id="exportIcsButton" type="button">Eksporter kalender</button>
-            <button class="secondary-button" id="portalUsersButton" type="button">👥 Portalbrukere</button>
+            <button class="secondary-button" id="portalUsersButton" type="button">👥 Brukere og roller</button>
             <button class="secondary-button" id="auditLogButton" type="button">🛡 Sikkerhetslogg</button>
             <button class="secondary-button" id="settingsButton" type="button">⚙ Innstillinger</button>
           </div>
@@ -154,7 +154,7 @@
 <dialog id="tenantDialog">
   <form method="dialog" id="tenantForm">
     <div class="dialog-head"><div><p class="eyebrow dark">NY KUNDE</p><h2>Koble til Microsoft tenant</h2></div><button class="icon-button" value="cancel" aria-label="Lukk">×</button></div>
-    <div class="notice"><strong>Hvordan det virker</strong><p>Oppgi Tenant ID og kundenavn. ExpiryGuard lager en Microsoft admin-consent-lenke. Etter godkjenning tester backend Graph-tilgangen og legger kunden til.</p></div>
+    <div class="notice"><strong>Hvordan det virker</strong><p>Oppgi Tenant ID og kundenavn. ExpiryGuard lager én Microsoft admin-consent-lenke for den samme ExpiryGuard-appen som brukes til Graph og portalinnlogging. Etter godkjenning tester backend Graph-tilgangen. Kunden setter deretter Assignment required = Yes og tildeler brukere under Users and groups. Roller tildeles inne i ExpiryGuard.</p></div>
     <div class="form-grid"><label class="field span-2">Kundenavn<input id="tenantName" required placeholder="Contoso AS"></label><label class="field span-2">Microsoft Entra Tenant ID<input id="tenantId" required pattern="[0-9a-fA-F-]{36}" placeholder="00000000-0000-0000-0000-000000000000"></label></div>
     <div class="dialog-actions"><button class="secondary-button" value="cancel" type="button" id="cancelTenant">Avbryt</button><button class="primary-button" type="submit">Opprett consent-lenke →</button></div>
   </form>
@@ -205,13 +205,13 @@
 
 <dialog id="portalUsersDialog" class="portal-users-dialog">
   <form method="dialog">
-    <div class="dialog-head"><div><p class="eyebrow dark">KUNDEPORTAL</p><h2>Portalbrukere</h2><p class="dialog-subtitle">Brukere registreres automatisk første gang de logger inn. Godkjenn dem som Viewer eller Admin her.</p></div><button class="icon-button" value="cancel" aria-label="Lukk">×</button></div>
+    <div class="dialog-head"><div><p class="eyebrow dark">TILGANG</p><h2>Brukere og roller</h2><p class="dialog-subtitle">Microsoft Entra bestemmer hvem som får logge inn. Rollen Viewer, Editor eller Tenant Admin lagres i ExpiryGuard. Tenant Admin kan styre roller i egen tenant; Cloud247 Super Admin kan styre alle kunder og blokkere ved behov.</p></div><button class="icon-button" value="cancel" aria-label="Lukk">×</button></div>
     <div class="portal-users-toolbar">
       <label class="field">Kunde<select id="portalUsersTenantFilter"><option value="">Alle kunder</option></select></label>
       <div class="portal-users-summary" id="portalUsersSummary">–</div>
       <button class="secondary-button" id="refreshPortalUsersButton" type="button">↻ Oppdater</button>
     </div>
-    <div class="notice compact-notice"><strong>Ingen Entra Premium kreves</strong><p>Microsoft brukes kun til sikker innlogging. Tilgang og rolle lagres i ExpiryGuard D1 og knyttes til brukerens validerte Tenant ID (tid) + Object ID (oid).</p></div>
+    <div class="notice compact-notice"><strong>Entra-tilgang + roller i ExpiryGuard</strong><p>Kunden setter <b>Assignment required = Yes</b> på ExpiryGuard Enterprise Application og tildeler brukere under <b>Users and groups</b>. På Entra Free må brukere tildeles individuelt; gruppebasert assignment krever P1/P2. Etter første innlogging får brukeren status Venter på rolle, og Tenant Admin eller Cloud247 tildeler Viewer, Editor eller Tenant Admin i ExpiryGuard.</p></div>
     <div id="portalUsersList" class="portal-users-list"><div class="queue-empty">Ingen portalbrukere ennå.</div></div>
     <div class="dialog-actions"><button class="primary-button" value="cancel">Ferdig</button></div>
   </form>
@@ -237,7 +237,7 @@
       <label class="field">Rotasjon<select id="rotateSeconds"><option value="15">15 sekunder</option><option value="30">30 sekunder</option><option value="60">60 sekunder</option></select></label>
     </div>
     <div class="notice"><strong>Om anbefalingene</strong><p>Startvinduer er operative Cloud247-anbefalinger, ikke formelle frister fra Apple eller Microsoft. De er bevisst konservative for å gi tid til endringsvindu, kundekontakt og verifisering.</p></div>
-    <div class="notice"><strong>Sikkerhet</strong><p>Dashboardet bruker Microsoft Entra ID og OAuth authorization code flow med PKCE. Access- og refresh-token lagres bare i sessionStorage. Worker validerer signatur, issuer, tenant, audience, klient-app og scope før API-et svarer.</p></div>
+    <div class="notice"><strong>Sikkerhet</strong><p>Innloggingen håndteres av Cloudflare Worker mot Microsoft Entra ID. Worker validerer Microsoft ID-tokenet og oppretter en kort ExpiryGuard-session. Kundens validerte Tenant ID (tid) er den faste tenant-grensen for alle API-kall.</p></div>
     <div class="dialog-actions"><button class="secondary-button" value="cancel" type="button" id="cancelSettings">Avbryt</button><button class="primary-button" type="submit">Lagre innstillinger</button></div>
   </form>
 </dialog>
