@@ -377,3 +377,74 @@ body.customer-portal .auth-gate-shell{
   body.app-authenticated .cloud-brand{width:118px}
   body.app-authenticated .toolbar-left,body.app-authenticated .toolbar-right{grid-template-columns:1fr}
 }
+
+/* ExpiryGuard v5.1.7 - mobile polish: lock viewport and tidy odd toolbar/tenant cards */
+@media(max-width:760px){
+  html,
+  body{width:100%;max-width:100%;overflow-x:hidden}
+
+  body.app-authenticated,
+  body.app-authenticated main,
+  body.app-authenticated .site-header,
+  body.app-authenticated .hero,
+  body.app-authenticated .app-section{width:100%;max-width:100%;min-width:0}
+
+  body.app-authenticated .site-header,
+  body.app-authenticated .hero,
+  body.app-authenticated .app-section{overflow-x:clip}
+
+  body.app-authenticated .shell{
+    width:calc(100% - 28px);
+    max-width:calc(100% - 28px);
+    min-width:0;
+  }
+
+  body.app-authenticated .header-inner,
+  body.app-authenticated .hero-grid,
+  body.app-authenticated .app-layout,
+  body.app-authenticated .main-panel,
+  body.app-authenticated .tenant-panel,
+  body.app-authenticated .toolbar,
+  body.app-authenticated .toolbar-left,
+  body.app-authenticated .toolbar-right{
+    min-width:0;
+    max-width:100%;
+  }
+
+  body.app-authenticated .app-layout{
+    grid-template-columns:minmax(0,1fr);
+    width:100%;
+  }
+
+  body.app-authenticated .tenant-panel{overflow:hidden}
+  body.app-authenticated .tenant-list{width:100%;max-width:100%}
+  body.app-authenticated .tenant-list .tenant-choice:only-child{
+    flex:1 0 100%;
+    width:100%;
+    max-width:100%;
+  }
+
+  body.app-authenticated .toolbar{
+    display:grid;
+    grid-template-columns:minmax(0,1fr);
+    align-items:stretch;
+    width:100%;
+  }
+
+  body.app-authenticated .toolbar-left,
+  body.app-authenticated .toolbar-right{
+    width:100%;
+  }
+
+  body.app-authenticated .toolbar-left>:last-child:nth-child(odd),
+  body.app-authenticated .toolbar-right>:last-child:nth-child(odd){
+    grid-column:1/-1;
+  }
+}
+
+@media(max-width:420px){
+  body.app-authenticated .shell{
+    width:calc(100% - 20px);
+    max-width:calc(100% - 20px);
+  }
+}
