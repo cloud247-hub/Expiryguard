@@ -91,6 +91,7 @@
             <button class="secondary-button" id="exportCsvButton" type="button">Eksporter CSV</button>
             <button class="secondary-button" id="exportIcsButton" type="button">Eksporter kalender</button>
             <button class="secondary-button" id="portalUsersButton" type="button">👥 Brukere og roller</button>
+            <button class="secondary-button" id="teamsNotificationsButton" type="button">💬 Teams-varsler</button>
             <button class="secondary-button" id="auditLogButton" type="button">🛡 Sikkerhetslogg</button>
             <button class="secondary-button" id="settingsButton" type="button">⚙ Innstillinger</button>
           </div>
@@ -217,6 +218,27 @@
   </form>
 </dialog>
 
+<dialog id="teamsNotificationsDialog" class="teams-notifications-dialog">
+  <form method="dialog" id="teamsNotificationsForm">
+    <div class="dialog-head"><div><p class="eyebrow dark">MICROSOFT TEAMS</p><h2>Teams-varsler</h2><p class="dialog-subtitle">Send automatiske ExpiryGuard-varsler til en Teams-kanal via Microsoft Teams Workflows. Tenant Admin styrer sin egen tenant; Cloud247 Super Admin kan konfigurere alle kunder.</p></div><button class="icon-button" value="cancel" aria-label="Lukk">×</button></div>
+    <div class="form-grid">
+      <label class="field span-2">Kunde<select id="teamsTenantSelect"></select></label>
+      <label class="toggle-field span-2"><input type="checkbox" id="teamsEnabled"><span><strong>Aktiver Teams-varsler</strong><small>Varsler sendes etter planlagt eller manuell synkronisering. Samme varsel sendes bare én gang per utløpsdato og nivå.</small></span></label>
+      <label class="field span-2">Teams Workflows webhook-URL<input id="teamsWebhookUrl" type="password" inputmode="url" autocomplete="off" placeholder="Lim inn ny webhook-URL for å konfigurere eller erstatte"></label>
+      <label class="field span-2">Kanalnavn / beskrivelse<input id="teamsChannelLabel" maxlength="120" placeholder="F.eks. IT Drift / ExpiryGuard"></label>
+      <label class="toggle-field"><input type="checkbox" id="teamsNotifyPlanned" checked><span><strong>Start fornyelse</strong><small>Når anbefalt startvindu nås.</small></span></label>
+      <label class="toggle-field"><input type="checkbox" id="teamsNotifyUrgent" checked><span><strong>Haster</strong><small>Når elementet går inn i hastevinduet.</small></span></label>
+      <label class="toggle-field"><input type="checkbox" id="teamsNotifyCritical" checked><span><strong>Kritisk</strong><small>Når elementet går inn i kritiskvinduet.</small></span></label>
+      <label class="toggle-field"><input type="checkbox" id="teamsNotifyExpired" checked><span><strong>Utløpt</strong><small>Når utløpsdatoen er passert.</small></span></label>
+    </div>
+    <div id="teamsWebhookState" class="teams-webhook-state"></div>
+    <div class="notice compact-notice"><strong>Slik kobler du til Teams</strong><p>Opprett en Workflow i ønsket Teams-kanal med triggeren <b>When a Teams webhook request is received</b>, sett trigger-tilgangen til <b>Anyone</b>, kopier den aktuelle callback-URL-en og lim den inn her. Bruk den nyeste URL-en fra Workflows.</p></div>
+    <div class="notice compact-notice"><strong>Sikkerhet</strong><p>Webhook-URL-en behandles som en hemmelighet. Den krypteres med AES-256-GCM i Worker før lagring i D1 og returneres aldri til nettleseren etter lagring.</p></div>
+    <div id="teamsLastStatus" class="teams-last-status"></div>
+    <div class="dialog-actions teams-dialog-actions"><button class="danger-button" id="teamsClearWebhookButton" type="button">Fjern webhook</button><button class="secondary-button" id="teamsTestButton" type="button">Send testvarsel</button><button class="secondary-button" value="cancel" type="button" id="cancelTeamsNotifications">Avbryt</button><button class="primary-button" type="submit">Lagre Teams-varsler</button></div>
+  </form>
+</dialog>
+
 <dialog id="auditDialog" class="audit-dialog">
   <form method="dialog">
     <div class="dialog-head"><div><p class="eyebrow dark">SIKKERHET</p><h2>Sikkerhetslogg</h2><p class="dialog-subtitle">Management-handlinger og endringer logges med bruker, tenant og tidspunkt.</p></div><button class="icon-button" value="cancel" aria-label="Lukk">×</button></div>
@@ -249,13 +271,9 @@
 <script src="i18n.js"></script>
 <script src="app.js"></script>
 
-  <!-- Cloudflare Web Analytics -->
-  <script
-    type="module"
-    src="https://static.cloudflareinsights.com/beacon.min.js"
-    data-cf-beacon='{"token":"584b7f6cade542558bae17a2033268f2"}'>
-  </script>
-  <!-- End Cloudflare Web Analytics -->
-  
+<!-- Cloudflare Web Analytics -->
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token":"584b7f6cade542558bae17a2033268f2"}'></script>
+<!-- End Cloudflare Web Analytics -->
+
 </body>
 </html>

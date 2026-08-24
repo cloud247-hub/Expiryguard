@@ -92,6 +92,7 @@
     confirm: $('confirmDialog'), confirmTitle: $('confirmTitle'), confirmText: $('confirmText'), toast: $('toast'),
     authGate: $('authGate'), appMain: $('appMain'), appFooter: $('appFooter'), signIn: $('signInButton'), signOut: $('signOutButton'), authStatus: $('authStatus'), authUser: $('authUser'), authAvatar: $('authAvatar'), authUserName: $('authUserName'), authUserAccount: $('authUserAccount'), authUserRole: $('authUserRole'), importButton: $('importButton'), workflowPanel: $('workflowPanel'), accessBanner: $('accessBanner'),
     portalUsers: $('portalUsersButton'), portalUsersDialog: $('portalUsersDialog'), portalUsersList: $('portalUsersList'), portalUsersSummary: $('portalUsersSummary'), portalUsersTenantFilter: $('portalUsersTenantFilter'), refreshPortalUsers: $('refreshPortalUsersButton'),
+    teamsNotifications: $('teamsNotificationsButton'), teamsDialog: $('teamsNotificationsDialog'), teamsForm: $('teamsNotificationsForm'), teamsTenant: $('teamsTenantSelect'), teamsEnabled: $('teamsEnabled'), teamsWebhookUrl: $('teamsWebhookUrl'), teamsChannelLabel: $('teamsChannelLabel'), teamsNotifyPlanned: $('teamsNotifyPlanned'), teamsNotifyUrgent: $('teamsNotifyUrgent'), teamsNotifyCritical: $('teamsNotifyCritical'), teamsNotifyExpired: $('teamsNotifyExpired'), teamsWebhookState: $('teamsWebhookState'), teamsLastStatus: $('teamsLastStatus'), teamsTest: $('teamsTestButton'), teamsClear: $('teamsClearWebhookButton'), cancelTeams: $('cancelTeamsNotifications'),
     auditLog: $('auditLogButton'), auditDialog: $('auditDialog'), auditList: $('auditList'), auditSummary: $('auditSummary'), refreshAudit: $('refreshAuditButton')
   };
 
@@ -109,6 +110,7 @@
   let currentUser = null;
   let auditEntries = [];
   let portalUsers = [];
+  let teamsNotificationSettings = null;
 
   function loadSettings() {
     const defaults = { defaultReminder: 30, notifyEnabled: false, notificationCadence: 12, rotateTenants: false, rotateSeconds: 30 };
@@ -123,6 +125,7 @@
   function isTenantAdmin() { return currentUser?.role === 'tenant_admin'; }
   function isPending() { return currentUser?.role === 'pending'; }
   function canManagePortalUsers() { return isManagement() || isTenantAdmin(); }
+  function canManageTeamsNotifications() { return isManagement() || isTenantAdmin(); }
   function canWrite() { return isManagement() || ['tenant_admin', 'tenant_editor'].includes(currentUser?.role); }
   function toast(msg) { els.toast.textContent = tr(msg); els.toast.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => els.toast.classList.remove('show'), 2800); }
   function esc(v = '') { return String(v).replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c])); }
@@ -204,6 +207,7 @@
     if (els.exportCsv) els.exportCsv.hidden = !isManagement();
     if (els.exportIcs) els.exportIcs.hidden = !isManagement();
     if (els.portalUsers) els.portalUsers.hidden = !canManagePortalUsers();
+    if (els.teamsNotifications) els.teamsNotifications.hidden = !canManageTeamsNotifications();
     if (els.auditLog) els.auditLog.hidden = !isManagement();
     if (els.addManual) els.addManual.hidden = !write;
     if (els.workflowPanel) els.workflowPanel.hidden = !write;
@@ -501,6 +505,162 @@
     } catch (err) { toast(err.message || L('Kunne ikke oppdatere tilgang', 'Could not update access')); }
   }
 
+  function teamsSelectedTenantId() {
+    if (!canManageTeamsNotifications()) return '';
+    if (!isManagement()) return currentUser?.tenantId || '';
+    return els.teamsTenant?.value || '';
+  }
+
+  function populateTeamsTenantSelect() {
+    if (!els.teamsTenant) return;
+    const previous = els.teamsTenant.value;
+    if (!isManagement()) {
+      const id = currentUser?.tenantId || '';
+      const name = currentUser?.customerName || tenantName(id) || L('Din tenant', 'Your tenant');
+      els.teamsTenant.innerHTML = `<option value="${esc(id)}">${esc(name)}</option>`;
+      els.teamsTenant.disabled = true;
+      return;
+    }
+    els.teamsTenant.disabled = false;
+    const enabledTenants = tenants.filter(t => t.enabled !== false);
+    els.teamsTenant.innerHTML = enabledTenants.map(t => `<option value="${esc(t.id)}">${esc(t.displayName)}</option>`).join('');
+    const preferred = selectedTenant && selectedTenant !== 'all' ? selectedTenant : previous;
+    if (preferred && enabledTenants.some(t => t.id === preferred)) els.teamsTenant.value = preferred;
+    else if (enabledTenants[0]) els.teamsTenant.value = enabledTenants[0].id;
+  }
+
+  function renderTeamsNotificationSettings() {
+    const value = teamsNotificationSettings || {};
+    if (els.teamsEnabled) els.teamsEnabled.checked = !!value.enabled;
+    if (els.teamsWebhookUrl) {
+      els.teamsWebhookUrl.placeholder = value.webhookConfigured
+        ? L('Webhook er lagret kryptert – lim inn ny URL for å erstatte', 'Webhook is stored encrypted – paste a new URL to replace it')
+        : L('Lim inn Teams Workflows webhook-URL', 'Paste Teams Workflows webhook URL');
+    }
+    if (els.teamsChannelLabel) els.teamsChannelLabel.value = value.channelLabel || '';
+    if (els.teamsNotifyPlanned) els.teamsNotifyPlanned.checked = value.notifyPlanned !== false;
+    if (els.teamsNotifyUrgent) els.teamsNotifyUrgent.checked = value.notifyUrgent !== false;
+    if (els.teamsNotifyCritical) els.teamsNotifyCritical.checked = value.notifyCritical !== false;
+    if (els.teamsNotifyExpired) els.teamsNotifyExpired.checked = value.notifyExpired !== false;
+    if (els.teamsWebhookState) {
+      const keyState = value.encryptionConfigured === false
+        ? `<span class="teams-state-badge error">${L('Krypteringsnøkkel mangler i Worker', 'Worker encryption key is missing')}</span>`
+        : `<span class="teams-state-badge ok">${L('Kryptering klar', 'Encryption ready')}</span>`;
+      const webhookState = value.webhookConfigured
+        ? `<span class="teams-state-badge ok">${L('Webhook konfigurert', 'Webhook configured')}${value.webhookHost ? ` · ${esc(value.webhookHost)}` : ''}</span>`
+        : `<span class="teams-state-badge pending">${L('Ingen webhook konfigurert', 'No webhook configured')}</span>`;
+      els.teamsWebhookState.innerHTML = `${keyState}${webhookState}`;
+    }
+    if (els.teamsLastStatus) {
+      const testOk = value.lastTestStatus === 'ok';
+      let statusHtml = value.lastTestAt
+        ? `<strong>${testOk ? L('Siste test var vellykket', 'Last test succeeded') : L('Siste test feilet', 'Last test failed')}</strong><span>${fmtDate(value.lastTestAt)}${!testOk && value.lastError ? ` · ${esc(value.lastError)}` : ''}</span>`
+        : `<span>${L('Ingen test er sendt ennå.', 'No test has been sent yet.')}</span>`;
+      if (value.lastError && (testOk || !value.lastTestAt)) statusHtml += `<span class="teams-delivery-error">${L('Siste leveringsfeil', 'Latest delivery error')}: ${esc(value.lastError)}</span>`;
+      els.teamsLastStatus.innerHTML = statusHtml;
+      els.teamsLastStatus.classList.toggle('error', (!testOk && !!value.lastTestAt) || !!value.lastError);
+    }
+    if (els.teamsClear) els.teamsClear.disabled = !value.webhookConfigured;
+    if (els.teamsTest) els.teamsTest.disabled = !value.webhookConfigured && !String(els.teamsWebhookUrl?.value || '').trim();
+  }
+
+  async function loadTeamsNotificationSettings() {
+    if (!canManageTeamsNotifications()) return;
+    const tenantId = teamsSelectedTenantId();
+    if (!tenantId) {
+      teamsNotificationSettings = null;
+      if (els.teamsWebhookState) els.teamsWebhookState.innerHTML = `<span class="teams-state-badge error">${L('Ingen kunde er valgt', 'No customer selected')}</span>`;
+      return;
+    }
+    if (els.teamsWebhookUrl) els.teamsWebhookUrl.value = '';
+    if (els.teamsWebhookState) els.teamsWebhookState.innerHTML = `<span class="teams-state-badge pending">${L('Henter Teams-oppsett…', 'Loading Teams settings…')}</span>`;
+    try {
+      const result = await api(`/api/teams-notifications/${encodeURIComponent(tenantId)}`);
+      teamsNotificationSettings = result.settings || null;
+      renderTeamsNotificationSettings();
+    } catch (err) {
+      teamsNotificationSettings = null;
+      if (els.teamsWebhookState) els.teamsWebhookState.innerHTML = `<span class="teams-state-badge error">${esc(err.message || L('Kunne ikke hente Teams-oppsett', 'Could not load Teams settings'))}</span>`;
+    }
+  }
+
+  async function openTeamsNotifications() {
+    if (!canManageTeamsNotifications()) return;
+    populateTeamsTenantSelect();
+    els.teamsDialog?.showModal();
+    await loadTeamsNotificationSettings();
+  }
+
+  async function saveTeamsNotificationSettings({ quiet = false, keepOpen = true } = {}) {
+    if (!canManageTeamsNotifications()) return false;
+    const tenantId = teamsSelectedTenantId();
+    if (!tenantId) { if (!quiet) toast(L('Velg en kunde først', 'Select a customer first')); return false; }
+    const payload = {
+      enabled: !!els.teamsEnabled?.checked,
+      webhookUrl: String(els.teamsWebhookUrl?.value || '').trim(),
+      channelLabel: String(els.teamsChannelLabel?.value || '').trim(),
+      notifyPlanned: !!els.teamsNotifyPlanned?.checked,
+      notifyUrgent: !!els.teamsNotifyUrgent?.checked,
+      notifyCritical: !!els.teamsNotifyCritical?.checked,
+      notifyExpired: !!els.teamsNotifyExpired?.checked
+    };
+    try {
+      const result = await api(`/api/teams-notifications/${encodeURIComponent(tenantId)}`, { method: 'PATCH', body: JSON.stringify(payload) });
+      teamsNotificationSettings = result.settings || null;
+      renderTeamsNotificationSettings();
+      if (!quiet) toast(L('Teams-varsler lagret', 'Teams notifications saved'));
+      if (!keepOpen) els.teamsDialog?.close();
+      return true;
+    } catch (err) {
+      toast(err.message || L('Kunne ikke lagre Teams-varsler', 'Could not save Teams notifications'));
+      return false;
+    }
+  }
+
+  async function testTeamsNotification() {
+    if (!canManageTeamsNotifications()) return;
+    const tenantId = teamsSelectedTenantId();
+    if (!tenantId) return;
+    const newWebhook = String(els.teamsWebhookUrl?.value || '').trim();
+    if (newWebhook) {
+      const saved = await saveTeamsNotificationSettings({ quiet: true, keepOpen: true });
+      if (!saved) return;
+    }
+    if (!teamsNotificationSettings?.webhookConfigured) { toast(L('Legg inn og lagre en webhook først', 'Enter and save a webhook first')); return; }
+    els.teamsTest.disabled = true;
+    const oldText = els.teamsTest.textContent;
+    els.teamsTest.textContent = L('Sender…', 'Sending…');
+    try {
+      await api(`/api/teams-notifications/${encodeURIComponent(tenantId)}/test`, { method: 'POST', body: '{}' });
+      toast(L('Testvarsel sendt til Teams', 'Test notification sent to Teams'));
+      await loadTeamsNotificationSettings();
+    } catch (err) {
+      toast(err.message || L('Kunne ikke sende testvarsel', 'Could not send test notification'));
+      await loadTeamsNotificationSettings();
+    } finally {
+      els.teamsTest.disabled = false;
+      els.teamsTest.textContent = oldText;
+    }
+  }
+
+  async function clearTeamsWebhook() {
+    if (!canManageTeamsNotifications()) return;
+    const tenantId = teamsSelectedTenantId();
+    if (!tenantId || !teamsNotificationSettings?.webhookConfigured) return;
+    try {
+      const payload = {
+        enabled: false, clearWebhook: true,
+        channelLabel: String(els.teamsChannelLabel?.value || '').trim(),
+        notifyPlanned: !!els.teamsNotifyPlanned?.checked, notifyUrgent: !!els.teamsNotifyUrgent?.checked,
+        notifyCritical: !!els.teamsNotifyCritical?.checked, notifyExpired: !!els.teamsNotifyExpired?.checked
+      };
+      const result = await api(`/api/teams-notifications/${encodeURIComponent(tenantId)}`, { method: 'PATCH', body: JSON.stringify(payload) });
+      teamsNotificationSettings = result.settings || null;
+      renderTeamsNotificationSettings();
+      toast(L('Teams webhook fjernet', 'Teams webhook removed'));
+    } catch (err) { toast(err.message || L('Kunne ikke fjerne webhook', 'Could not remove webhook')); }
+  }
+
   function auditActionLabel(action) {
     const labels = {
       'tenant.consent_started': L('Consent startet', 'Consent started'),
@@ -516,6 +676,11 @@
       'portal_user.override_updated': L('Rolleoverstyring oppdatert', 'Role override updated'),
       'portal_user.blocked': L('Portalbruker blokkert', 'Portal user blocked'),
       'portal_user.removed': L('Portalbruker fjernet', 'Portal user removed'),
+      'teams_notifications.settings_updated': L('Teams-varsler oppdatert', 'Teams notifications updated'),
+      'teams_notifications.removed': L('Teams webhook fjernet', 'Teams webhook removed'),
+      'teams_notifications.test_sent': L('Teams testvarsel sendt', 'Teams test notification sent'),
+      'teams_notifications.test_failed': L('Teams testvarsel feilet', 'Teams test notification failed'),
+      'teams_notifications.scheduled': L('Teams-varsler behandlet', 'Teams notifications processed'),
       'request.failed': L('Avvist eller feilet endringsforsøk', 'Rejected or failed change request')
     };
     return labels[action] || action || L('Ukjent handling', 'Unknown action');
@@ -816,7 +981,7 @@
   function icsDate(v) { const d = parseDate(v); return d ? d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z') : ''; }
   function exportCalendar() {
     const now = icsDate(new Date().toISOString());
-    const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Cloud247//ExpiryGuard v5.1.5//NO', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'X-WR-CALNAME:Cloud247 ExpiryGuard'];
+    const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Cloud247//ExpiryGuard v5.2.0//NO', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'X-WR-CALNAME:Cloud247 ExpiryGuard'];
     for (const item of items) {
       const p = policyFor(item);
       const tenant = tenantName(item.tenantId);
@@ -826,7 +991,7 @@
       lines.push('BEGIN:VEVENT', `UID:${icsEscape(item.id)}-expiry@expiryguard.cloud247.no`, `DTSTAMP:${now}`, `DTSTART:${icsDate(item.expiresAt)}`, `SUMMARY:${icsEscape(L(`ExpiryGuard: UTLØPER – ${item.name}`, `ExpiryGuard: EXPIRES – ${item.name}`))}`, `DESCRIPTION:${icsEscape(desc)}`, 'END:VEVENT');
     }
     lines.push('END:VCALENDAR');
-    download(`expiryguard-v5.1.5-${new Date().toISOString().slice(0, 10)}.ics`, lines.join('\r\n'), 'text/calendar;charset=utf-8');
+    download(`expiryguard-v5.2.0-${new Date().toISOString().slice(0, 10)}.ics`, lines.join('\r\n'), 'text/calendar;charset=utf-8');
   }
 
   function download(name, text, type) { const blob = new Blob([text], { type }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); }
@@ -859,6 +1024,13 @@
   els.refreshPortalUsers?.addEventListener('click', loadPortalUsers);
   els.portalUsersTenantFilter?.addEventListener('change', renderPortalUsers);
   els.portalUsersList?.addEventListener('click', async e => { const button = e.target.closest('.portal-user-action'); if (!button) return; const row = button.closest('.portal-user-row'); await changePortalUser(row, button.dataset.action); });
+  els.teamsNotifications?.addEventListener('click', openTeamsNotifications);
+  els.teamsTenant?.addEventListener('change', loadTeamsNotificationSettings);
+  els.teamsForm?.addEventListener('submit', async e => { e.preventDefault(); await saveTeamsNotificationSettings({ keepOpen: false }); });
+  els.teamsTest?.addEventListener('click', testTeamsNotification);
+  els.teamsClear?.addEventListener('click', clearTeamsWebhook);
+  els.cancelTeams?.addEventListener('click', () => els.teamsDialog?.close());
+  els.teamsWebhookUrl?.addEventListener('input', () => { if (els.teamsTest) els.teamsTest.disabled = !teamsNotificationSettings?.webhookConfigured && !String(els.teamsWebhookUrl.value || '').trim(); });
   els.auditLog?.addEventListener('click', async () => { if (!ensureAdmin()) return; els.auditDialog.showModal(); await loadAuditLog(); });
   els.refreshAudit?.addEventListener('click', loadAuditLog);
   els.settingsForm.addEventListener('submit', async e => {
@@ -906,12 +1078,12 @@
   });
 
   els.search.addEventListener('input', renderItems); els.filter.addEventListener('change', renderItems);
-  els.exportJson.addEventListener('click', () => download(`expiryguard-v5.1.5-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify({ version: '5.1.5', exportedAt: new Date().toISOString(), tenants, items, events }, null, 2), 'application/json'));
+  els.exportJson.addEventListener('click', () => download(`expiryguard-v5.2.0-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify({ version: '5.2.0', exportedAt: new Date().toISOString(), tenants, items, events }, null, 2), 'application/json'));
   els.exportIcs.addEventListener('click', exportCalendar);
   els.exportCsv.addEventListener('click', () => {
     const h = ['tenantId', 'tenantName', 'name', 'kind', 'source', 'expiresAt', 'recommendedStartAt', 'stage', 'impact', 'workflowState', 'owner', 'reminderDays', 'urgentDays', 'criticalDays', 'url', 'notes'];
     const rows = [h.join(','), ...items.map(i => h.map(k => csvCell(k === 'tenantName' ? tenantName(i.tenantId) : k === 'recommendedStartAt' ? recommendedStartAt(i) : k === 'stage' ? stageFor(i) : i[k])).join(','))];
-    download(`expiryguard-v5.1.5-${new Date().toISOString().slice(0, 10)}.csv`, rows.join('\n'), 'text/csv;charset=utf-8');
+    download(`expiryguard-v5.2.0-${new Date().toISOString().slice(0, 10)}.csv`, rows.join('\n'), 'text/csv;charset=utf-8');
   });
   els.importFile.addEventListener('change', async () => {
     const file = els.importFile.files[0]; if (!file) return; if (!ensureAdmin()) { els.importFile.value = ''; return; }
@@ -946,6 +1118,7 @@
     }
     if (els.manualDialog.open) updateManualPolicyHint();
     if (els.portalUsersDialog?.open) renderPortalUsers();
+    if (els.teamsDialog?.open) renderTeamsNotificationSettings();
     if (els.auditDialog?.open) renderAuditLog();
     updateNotificationButton();
   });
