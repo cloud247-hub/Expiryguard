@@ -9,7 +9,7 @@
   const API_BASE = String(cfg.apiBase || '').replace(/\/$/, '');
   const SETTINGS_KEY = 'cloud247-expiryguard-v5-settings';
   const NOTIFY_KEY = 'cloud247-expiryguard-v5-notify-state';
-  const AUTH_KEY = 'cloud247-expiryguard-v5.1.5-session';
+  const AUTH_KEY = 'cloud247-expiryguard-v5.3.0-session';
   const HOUR = 3600000;
   const DAY = 86400000;
 
@@ -55,6 +55,20 @@
         'Synkroniser og kontroller ny utløpsdato, lastSuccessfulSyncDateTime og eventuelle synkfeil.'
       ],
       docsUrl: 'https://learn.microsoft.com/en-us/intune/device-enrollment/apple/manage-devices-tokens-apple'
+    },
+    'graph-entra-secret': {
+      startDays: 60, urgentDays: 30, criticalDays: 14, impact: 'critical',
+      title: 'Start rotasjon av app-secret i god tid',
+      recommendation: 'Client secrets kan gi direkte driftsstans når de utløper. Opprett en ny credential, oppdater tjenesten som bruker den og verifiser funksjon før den gamle hemmeligheten fjernes.',
+      rationale: 'ExpiryGuard leser kun metadata om App Registrations og passwordCredentials via Microsoft Graph. Selve secret-verdien kan ikke hentes fra Graph etter at den er opprettet. Cloud247 bruker 60 dager som operativ startgrense.',
+      steps: [
+        'Bekreft hvilken applikasjon og integrasjon som bruker credentialen.',
+        'Opprett en ny client secret eller bytt til sertifikat/federated credential der det passer.',
+        'Oppdater tjenesten, automasjonen eller integrasjonen med ny credential.',
+        'Test autentisering og avhengige funksjoner før gammel credential fjernes.',
+        'Synkroniser ExpiryGuard og bekreft at den nye utløpsdatoen vises.'
+      ],
+      docsUrl: 'https://learn.microsoft.com/en-us/entra/identity-platform/how-to-add-credentials'
     }
   };
 
@@ -255,7 +269,7 @@
   function recommendedStartAt(item) { return addDays(item.expiresAt, -policyFor(item).startDays); }
 
   function sourceLabel(source) {
-    return ({ 'graph-apns': 'Graph · Apple Push', 'graph-ade': 'Graph · ADE', 'graph-vpp': 'Graph · VPP', 'manual': L('Manuell', 'Manual') })[source] || source || L('Ukjent', 'Unknown');
+    return ({ 'graph-apns': 'Graph · Apple Push', 'graph-ade': 'Graph · ADE', 'graph-vpp': 'Graph · VPP', 'graph-entra-secret': L('Graph · Entra app-secret', 'Graph · Entra app secret'), 'manual': L('Manuell', 'Manual') })[source] || source || L('Ukjent', 'Unknown');
   }
   function tenantById(id) { return tenants.find(t => t.id === id); }
   function tenantName(id) { return tenantById(id)?.displayName || id || L('Ukjent', 'Unknown'); }
@@ -345,7 +359,7 @@
     els.manageTenantList.innerHTML = tenants.length ? tenants.map(t => {
       const attention = tenantAttentionCount(t.id);
       const health = tenantSyncHealth(t);
-      return `<div class="manage-row" data-id="${esc(t.id)}"><div><strong>${esc(t.displayName)}</strong><small>${esc(t.id)}</small><small>${attention} ${L('tiltak', 'actions')} · ${esc(health.text)} · ${L('Sist synk', 'Last sync')}: ${t.lastSyncAt ? fmtDate(t.lastSyncAt) : L('aldri', 'never')}${t.lastSyncError ? ` · ${esc(t.lastSyncError)}` : ''}</small></div><div class="manage-actions"><button class="secondary-button sync-tenant" type="button">${L('↻ Synk', '↻ Sync')}</button><button class="danger-button remove-tenant" type="button">${L('Fjern', 'Remove')}</button></div></div>`;
+      return `<div class="manage-row" data-id="${esc(t.id)}"><div><strong>${esc(t.displayName)}</strong><small>${esc(t.id)}</small><small>${attention} ${L('tiltak', 'actions')} · ${esc(health.text)} · ${L('Sist synk', 'Last sync')}: ${t.lastSyncAt ? fmtDate(t.lastSyncAt) : L('aldri', 'never')}${t.lastSyncError ? ` · ${esc(t.lastSyncError)}` : ''}</small></div><div class="manage-actions"><button class="secondary-button sync-tenant" type="button">${L('↻ Synk', '↻ Sync')}</button><button class="secondary-button reconsent-tenant" type="button">${L('Oppdater Graph-tilgang', 'Update Graph access')}</button><button class="danger-button remove-tenant" type="button">${L('Fjern', 'Remove')}</button></div></div>`;
     }).join('') : `<div class="empty-state"><p>${L('Ingen kunder lagt til.', 'No customers added.')}</p></div>`;
   }
 
@@ -833,7 +847,8 @@
     els.workflowNote.value = item.workflowNote || '';
     if (els.workflowPanel) els.workflowPanel.hidden = !canWrite();
     renderWorkflowButtons();
-    const meta = { [L('Eier / Apple-konto', 'Owner / Apple account')]: item.owner || '', [L('Kildestatus', 'Source status')]: item.state || '', [L('Sist oppdatert', 'Last updated')]: fmtDate(item.updatedAt), [L('Sist fornyet oppdaget', 'Last renewal detected')]: item.lastRenewedAt ? fmtDate(item.lastRenewedAt) : '', ...friendlyMetadata(item.metadata) };
+    const ownerLabel = item.source === 'graph-entra-secret' ? L('Application (Client) ID', 'Application (Client) ID') : L('Eier / Apple-konto', 'Owner / Apple account');
+    const meta = { [ownerLabel]: item.owner || '', [L('Kildestatus', 'Source status')]: item.state || '', [L('Sist oppdatert', 'Last updated')]: fmtDate(item.updatedAt), [L('Sist fornyet oppdaget', 'Last renewal detected')]: item.lastRenewedAt ? fmtDate(item.lastRenewedAt) : '', ...friendlyMetadata(item.metadata) };
     els.detailMetadata.innerHTML = Object.entries(meta).filter(([, v]) => v !== '' && v !== null && v !== undefined).map(([k, v]) => `<div><span>${esc(k)}</span><strong>${esc(String(v))}</strong></div>`).join('');
     if (p.docsUrl) { els.detailDocs.hidden = false; els.detailDocs.href = p.docsUrl; } else { els.detailDocs.hidden = true; els.detailDocs.removeAttribute('href'); }
     if (item.url) { els.detailAdmin.hidden = false; els.detailAdmin.href = item.url; } else { els.detailAdmin.hidden = true; els.detailAdmin.removeAttribute('href'); }
@@ -843,7 +858,7 @@
   function friendlyMetadata(metadata = {}) {
     const out = {};
     const map = {
-      appleIdentifier: 'Apple ID', topicIdentifier: 'Topic ID', certificateSerialNumber: L('Sertifikatserienummer', 'Certificate serial number'), organizationName: L('Organisasjon', 'Organization'), vppTokenAccountType: L('VPP-kontotype', 'VPP account type'), lastSyncDateTime: L('Siste VPP-synk', 'Last VPP sync'), lastSyncStatus: L('VPP-synkstatus', 'VPP sync status'), countryOrRegion: L('Land/region', 'Country/region'), tokenName: 'ADE-token', tokenType: L('Token-type', 'Token type'), lastSuccessfulSyncDateTime: L('Siste vellykkede ADE-synk', 'Last successful ADE sync'), lastSyncErrorCode: L('ADE-synkfeil', 'ADE sync error'), syncedDeviceCount: L('Synkroniserte enheter', 'Synchronized devices')
+      appleIdentifier: 'Apple ID', topicIdentifier: 'Topic ID', certificateSerialNumber: L('Sertifikatserienummer', 'Certificate serial number'), organizationName: L('Organisasjon', 'Organization'), vppTokenAccountType: L('VPP-kontotype', 'VPP account type'), lastSyncDateTime: L('Siste VPP-synk', 'Last VPP sync'), lastSyncStatus: L('VPP-synkstatus', 'VPP sync status'), countryOrRegion: L('Land/region', 'Country/region'), tokenName: 'ADE-token', tokenType: L('Token-type', 'Token type'), lastSuccessfulSyncDateTime: L('Siste vellykkede ADE-synk', 'Last successful ADE sync'), lastSyncErrorCode: L('ADE-synkfeil', 'ADE sync error'), syncedDeviceCount: L('Synkroniserte enheter', 'Synchronized devices'), applicationName: L('App Registration', 'App registration'), applicationObjectId: L('Application Object ID', 'Application Object ID'), appId: L('Application (Client) ID', 'Application (Client) ID'), secretDisplayName: L('Secret-navn', 'Secret name'), keyId: L('Credential Key ID', 'Credential Key ID'), startDateTime: L('Gyldig fra', 'Valid from')
     };
     for (const [key, label] of Object.entries(map)) {
       let value = metadata[key];
@@ -881,7 +896,7 @@
       `${L('Anbefalt start', 'Recommended start')}: ${fmtDate(recommendedStartAt(item))}`,
       `${L('Utløper', 'Expires')}: ${fmtDate(item.expiresAt)}`,
       `${L('Tid igjen', 'Time remaining')}: ${formatRemaining(item.expiresAt)}`,
-      `${L('Eier/konto', 'Owner/account')}: ${item.owner || L('Ikke registrert', 'Not registered')}`,
+      `${item.source === 'graph-entra-secret' ? L('Application (Client) ID', 'Application (Client) ID') : L('Eier/konto', 'Owner/account')}: ${item.owner || L('Ikke registrert', 'Not registered')}`,
       '',
       tr(p.title),
       tr(p.recommendation),
@@ -981,7 +996,7 @@
   function icsDate(v) { const d = parseDate(v); return d ? d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z') : ''; }
   function exportCalendar() {
     const now = icsDate(new Date().toISOString());
-    const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Cloud247//ExpiryGuard v5.2.0//NO', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'X-WR-CALNAME:Cloud247 ExpiryGuard'];
+    const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Cloud247//ExpiryGuard v5.3.0//NO', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'X-WR-CALNAME:Cloud247 ExpiryGuard'];
     for (const item of items) {
       const p = policyFor(item);
       const tenant = tenantName(item.tenantId);
@@ -991,7 +1006,7 @@
       lines.push('BEGIN:VEVENT', `UID:${icsEscape(item.id)}-expiry@expiryguard.cloud247.no`, `DTSTAMP:${now}`, `DTSTART:${icsDate(item.expiresAt)}`, `SUMMARY:${icsEscape(L(`ExpiryGuard: UTLØPER – ${item.name}`, `ExpiryGuard: EXPIRES – ${item.name}`))}`, `DESCRIPTION:${icsEscape(desc)}`, 'END:VEVENT');
     }
     lines.push('END:VCALENDAR');
-    download(`expiryguard-v5.2.0-${new Date().toISOString().slice(0, 10)}.ics`, lines.join('\r\n'), 'text/calendar;charset=utf-8');
+    download(`expiryguard-v5.3.0-${new Date().toISOString().slice(0, 10)}.ics`, lines.join('\r\n'), 'text/calendar;charset=utf-8');
   }
 
   function download(name, text, type) { const blob = new Blob([text], { type }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); }
@@ -1010,11 +1025,17 @@
 
   els.tenantList.addEventListener('click', e => { const b = e.target.closest('[data-tenant]'); if (!b) return; selectedTenant = b.dataset.tenant; render(); startRotation(); });
   document.querySelector('[data-tenant="all"]')?.addEventListener('click', () => { selectedTenant = 'all'; render(); startRotation(); });
+  async function startTenantConsent(tenantId, displayName) {
+    const result = await api('/api/tenants/consent', { method: 'POST', body: JSON.stringify({ tenantId: String(tenantId || '').trim(), displayName: String(displayName || '').trim() }) });
+    sessionStorage.setItem('expiryguard-consent-state', result.state || '');
+    location.href = result.consentUrl;
+  }
+
   els.addTenant.addEventListener('click', () => { if (!ensureAdmin()) return; els.tenantForm.reset(); els.tenantDialog.showModal(); });
   els.manageTenants.addEventListener('click', () => { if (!ensureAdmin()) return; renderManageTenants(); els.manageDialog.showModal(); });
   els.cancelTenant.addEventListener('click', () => els.tenantDialog.close());
-  els.tenantForm.addEventListener('submit', async e => { e.preventDefault(); try { const result = await api('/api/tenants/consent', { method: 'POST', body: JSON.stringify({ tenantId: els.tenantId.value.trim(), displayName: els.tenantName.value.trim() }) }); sessionStorage.setItem('expiryguard-consent-state', result.state || ''); location.href = result.consentUrl; } catch (err) { toast(err.message || 'Kunne ikke opprette consent-lenke'); } });
-  els.manageTenantList.addEventListener('click', async e => { const row = e.target.closest('.manage-row'); if (!row) return; const id = row.dataset.id; if (e.target.closest('.sync-tenant')) await sync(id); if (e.target.closest('.remove-tenant')) { const t = tenantById(id); pendingAction = { type: 'removeTenant', id }; els.confirmTitle.textContent = L('Fjerne kunde?', 'Remove customer?'); els.confirmText.textContent = L(`${t?.displayName || id} og lagrede ExpiryGuard-data for kunden fjernes. Admin consent i kundens tenant påvirkes ikke.`, `${t?.displayName || id} and stored ExpiryGuard data for the customer will be removed. Admin consent in the customer tenant is not affected.`); els.confirm.showModal(); } });
+  els.tenantForm.addEventListener('submit', async e => { e.preventDefault(); try { await startTenantConsent(els.tenantId.value, els.tenantName.value); } catch (err) { toast(err.message || L('Kunne ikke opprette consent-lenke', 'Could not create consent link')); } });
+  els.manageTenantList.addEventListener('click', async e => { const row = e.target.closest('.manage-row'); if (!row) return; const id = row.dataset.id; const t = tenantById(id); if (e.target.closest('.sync-tenant')) await sync(id); if (e.target.closest('.reconsent-tenant')) { try { await startTenantConsent(id, t?.displayName || id); } catch (err) { toast(err.message || L('Kunne ikke oppdatere Graph-tilgang', 'Could not update Graph access')); } return; } if (e.target.closest('.remove-tenant')) { pendingAction = { type: 'removeTenant', id }; els.confirmTitle.textContent = L('Fjerne kunde?', 'Remove customer?'); els.confirmText.textContent = L(`${t?.displayName || id} og lagrede ExpiryGuard-data for kunden fjernes. Admin consent i kundens tenant påvirkes ikke.`, `${t?.displayName || id} and stored ExpiryGuard data for the customer will be removed. Admin consent in the customer tenant is not affected.`); els.confirm.showModal(); } });
   els.syncAll.addEventListener('click', () => sync());
   els.notifications.addEventListener('click', requestNotifications);
   els.fullscreen.addEventListener('click', async () => { try { if (!document.fullscreenElement) await document.documentElement.requestFullscreen(); else await document.exitFullscreen(); } catch { toast('Fullskjerm støttes ikke i denne nettleseren'); } });
@@ -1078,12 +1099,12 @@
   });
 
   els.search.addEventListener('input', renderItems); els.filter.addEventListener('change', renderItems);
-  els.exportJson.addEventListener('click', () => download(`expiryguard-v5.2.0-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify({ version: '5.2.0', exportedAt: new Date().toISOString(), tenants, items, events }, null, 2), 'application/json'));
+  els.exportJson.addEventListener('click', () => download(`expiryguard-v5.3.0-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify({ version: '5.3.0', exportedAt: new Date().toISOString(), tenants, items, events }, null, 2), 'application/json'));
   els.exportIcs.addEventListener('click', exportCalendar);
   els.exportCsv.addEventListener('click', () => {
     const h = ['tenantId', 'tenantName', 'name', 'kind', 'source', 'expiresAt', 'recommendedStartAt', 'stage', 'impact', 'workflowState', 'owner', 'reminderDays', 'urgentDays', 'criticalDays', 'url', 'notes'];
     const rows = [h.join(','), ...items.map(i => h.map(k => csvCell(k === 'tenantName' ? tenantName(i.tenantId) : k === 'recommendedStartAt' ? recommendedStartAt(i) : k === 'stage' ? stageFor(i) : i[k])).join(','))];
-    download(`expiryguard-v5.2.0-${new Date().toISOString().slice(0, 10)}.csv`, rows.join('\n'), 'text/csv;charset=utf-8');
+    download(`expiryguard-v5.3.0-${new Date().toISOString().slice(0, 10)}.csv`, rows.join('\n'), 'text/csv;charset=utf-8');
   });
   els.importFile.addEventListener('change', async () => {
     const file = els.importFile.files[0]; if (!file) return; if (!ensureAdmin()) { els.importFile.value = ''; return; }

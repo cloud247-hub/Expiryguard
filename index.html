@@ -4,10 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>ExpiryGuard | Cloud247</title>
-  <meta name="description" content="Multi-tenant dashboard for Apple Push-sertifikater, ADE-tokens, Apps & Books/VPP-tokens og andre utløpsdatoer fra Microsoft Intune.">
+  <meta name="description" content="Multi-tenant dashboard for Apple Push-sertifikater, ADE-tokens, Apps & Books/VPP-tokens, Microsoft Entra app-secrets og andre utløpsdatoer.">
   <meta name="theme-color" content="#061A2F">
   <meta name="referrer" content="no-referrer">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://cloud247-expiryguard-api.sebastian-be1.workers.dev; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src 'none'; worker-src 'self'; manifest-src 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://login.microsoftonline.com https://cloud247-expiryguard-api.sebastian-be1.workers.dev https://cloudflareinsights.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src 'none'; worker-src 'self'; manifest-src 'self'; upgrade-insecure-requests">
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -24,8 +24,8 @@
     <div class="auth-intro">
       <p class="cloud-eyebrow">CLOUD TOOLBOX</p>
       <h1>ExpiryGuard</h1>
-      <p>Hold kontroll på Apple Push-sertifikater, ADE- og VPP-tokens og andre utløpsdatoer. Cloud247 får samlet oversikt, mens kundebrukere ser kun sin egen Microsoft-tenant.</p>
-      <div class="hero-trust-row" aria-label="ExpiryGuard-funksjoner"><span>Microsoft Graph</span><span>Multi-tenant</span><span>Fornyelsesplan</span><span>Live nedtelling</span></div>
+      <p>Hold kontroll på Apple Push-sertifikater, ADE- og VPP-tokens, Microsoft Entra app-secrets og andre utløpsdatoer. Cloud247 får samlet oversikt, mens kundebrukere ser kun sin egen Microsoft-tenant.</p>
+      <div class="hero-trust-row" aria-label="ExpiryGuard-funksjoner"><span>Microsoft Graph</span><span>Entra app-secrets</span><span>Multi-tenant</span><span>Fornyelsesplan</span><span>Live nedtelling</span></div>
     </div>
     <article class="auth-card cloud-panel">
       <div class="auth-card-heading">
@@ -54,8 +54,8 @@
       <div class="hero-copy">
         <p class="eyebrow">CLOUD TOOLBOX</p>
         <h1>ExpiryGuard</h1>
-        <p class="lead">Se ikke bare når noe utløper – se <strong>når du bør begynne å fornye det</strong>. Multi-tenant oversikt med Microsoft Graph, handlingsvinduer, live nedtelling og tenant-isolert tilgang.</p>
-        <div class="hero-pills"><span>Microsoft Graph</span><span>Multi-tenant</span><span>Fornyelsesplan</span><span>Live nedtelling</span><span>Browser-varsler</span></div>
+        <p class="lead">Se ikke bare når noe utløper – se <strong>når du bør begynne å fornye det</strong>. Multi-tenant oversikt med Microsoft Graph, Entra app-secrets, handlingsvinduer, live nedtelling og tenant-isolert tilgang.</p>
+        <div class="hero-pills"><span>Microsoft Graph</span><span>Entra app-secrets</span><span>Multi-tenant</span><span>Fornyelsesplan</span><span>Live nedtelling</span><span>Browser-varsler</span></div>
       </div>
       <article class="hero-card">
         <div class="hero-card-head">
@@ -120,7 +120,7 @@
         <section class="content-card">
           <div class="content-head">
             <div><p class="eyebrow dark">OVERSIKT</p><h2 id="overviewTitle">Alle kunder</h2><p class="sync-line" id="syncLine">Ikke synkronisert ennå</p><p class="display-meta" id="displayMeta"></p></div>
-            <div class="filters"><input id="searchInput" type="search" placeholder="Søk kunde, navn, type, Apple ID…" aria-label="Søk"><select id="statusFilter" aria-label="Filtrer status"><option value="all">Alle statuser</option><option value="expired">Utløpt</option><option value="critical">Kritisk</option><option value="urgent">Haster</option><option value="action">Start nå</option><option value="planned">Planlagt</option></select></div>
+            <div class="filters"><input id="searchInput" type="search" placeholder="Søk kunde, navn, type, Apple ID, App ID…" aria-label="Søk"><select id="statusFilter" aria-label="Filtrer status"><option value="all">Alle statuser</option><option value="expired">Utløpt</option><option value="critical">Kritisk</option><option value="urgent">Haster</option><option value="action">Start nå</option><option value="planned">Planlagt</option></select></div>
           </div>
           <div id="emptyState" class="empty-state"><div class="empty-icon">◷</div><h3>Ingen utløpsdatoer å vise</h3><p>Legg til en kunde og gi admin consent, eller opprett et manuelt element.</p></div>
           <div id="dashboardGrid" class="expiry-grid" hidden></div>
@@ -130,11 +130,12 @@
         </section>
 
         <section class="source-card">
-          <div><p class="eyebrow dark">AUTOMATISK FRA INTUNE</p><h2>Graph-kilder</h2><p>ExpiryGuard synkroniserer bare metadata som trengs for oversikten. Selve Apple-tokenet eller sertifikatet lagres ikke.</p></div>
+          <div><p class="eyebrow dark">AUTOMATISK FRA MICROSOFT GRAPH</p><h2>Graph-kilder</h2><p>ExpiryGuard synkroniserer bare metadata som trengs for oversikten. Apple-token, sertifikat og selve Entra secret-verdien lagres aldri.</p></div>
           <div class="source-grid">
             <article><span></span><strong>Apple MDM Push</strong><small>Start 60 dager før · kritisk siste 14 dager</small></article>
             <article><span>↻</span><strong>Automated Device Enrollment</strong><small>Start 30 dager før · kritisk siste 7 dager</small></article>
             <article><span>▦</span><strong>Apps & Books / VPP</strong><small>Start 30 dager før · kritisk siste 7 dager</small></article>
+            <article><span>◈</span><strong>Microsoft Entra app-secrets</strong><small>Start 60 dager før · kritisk siste 14 dager</small></article>
           </div>
         </section>
 
@@ -147,7 +148,6 @@
   </section>
 
   <section class="more-tools"><div class="shell more-tools-card"><div><p class="eyebrow">FLERE CLOUD247-VERKTØY</p><h2>Se mine andre verktøy</h2><p>Flere små verktøy for Microsoft 365, Intune, DNS og sikkerhet.</p></div><a class="primary-button" href="https://cloud247.no/">Åpne Cloud Toolbox →</a></div></section>
-  <section class="coffee-section" aria-labelledby="coffee-title"><div class="shell"><div class="coffee-card"><div class="coffee-icon" aria-hidden="true">☕</div><div class="coffee-copy"><p class="eyebrow dark">INGEN UTLØPTE TOKENS. FORHÅPENTLIGVIS.</p><h2 id="coffee-title">Hold ExpiryGuard våken</h2><p>Hvis dashboardet redder deg fra en utløpt Apple-integrasjon hos en kunde, kan du støtte videre utvikling av Cloud247-verktøyene.</p></div><div class="coffee-action"><a class="vipps-button" href="https://qr.vipps.no/box/90e4bd01-a470-474a-98fa-8b48f69b0f4e/pay-in" target="_blank" rel="noopener noreferrer">Spander en slurk</a></div></div></div></section>
 </main>
 
 <footer class="site-footer" id="appFooter" hidden><div class="shell footer-inner"><span>© <span id="year"></span> Cloud247</span><a href="https://cloud247.no/">cloud247.no</a></div></footer>
@@ -155,7 +155,7 @@
 <dialog id="tenantDialog">
   <form method="dialog" id="tenantForm">
     <div class="dialog-head"><div><p class="eyebrow dark">NY KUNDE</p><h2>Koble til Microsoft tenant</h2></div><button class="icon-button" value="cancel" aria-label="Lukk">×</button></div>
-    <div class="notice"><strong>Hvordan det virker</strong><p>Oppgi Tenant ID og kundenavn. ExpiryGuard lager én Microsoft admin-consent-lenke for den samme ExpiryGuard-appen som brukes til Graph og portalinnlogging. Etter godkjenning tester backend Graph-tilgangen. Kunden setter deretter Assignment required = Yes og tildeler brukere under Users and groups. Roller tildeles inne i ExpiryGuard.</p></div>
+    <div class="notice"><strong>Hvordan det virker</strong><p>Oppgi Tenant ID og kundenavn. ExpiryGuard lager én Microsoft admin-consent-lenke for Graph-tilgang og portalinnlogging. Graph-tilgangen omfatter Intune service configuration og lesing av App Registration-secretmetadata. Etter godkjenning tester backend Graph-tilgangen. Kunden setter deretter Assignment required = Yes og tildeler brukere under Users and groups. Roller tildeles inne i ExpiryGuard.</p></div>
     <div class="form-grid"><label class="field span-2">Kundenavn<input id="tenantName" required placeholder="Contoso AS"></label><label class="field span-2">Microsoft Entra Tenant ID<input id="tenantId" required pattern="[0-9a-fA-F-]{36}" placeholder="00000000-0000-0000-0000-000000000000"></label></div>
     <div class="dialog-actions"><button class="secondary-button" value="cancel" type="button" id="cancelTenant">Avbryt</button><button class="primary-button" type="submit">Opprett consent-lenke →</button></div>
   </form>
@@ -164,6 +164,7 @@
 <dialog id="manageDialog">
   <form method="dialog">
     <div class="dialog-head"><div><p class="eyebrow dark">MULTI-TENANT</p><h2>Administrer kunder</h2></div><button class="icon-button" value="cancel" aria-label="Lukk">×</button></div>
+    <div class="notice compact-notice"><strong>Graph-tilgang</strong><p>For automatisk overvåking av Microsoft Entra app-secrets kreves Application.Read.All. Etter at tillatelsen er lagt til på ExpiryGuard Graph Connector, bruk Oppdater Graph-tilgang for eksisterende kunder slik at kunden kan gi admin consent på nytt. Dette sletter ikke eksisterende ExpiryGuard-data.</p></div>
     <div id="manageTenantList" class="manage-list"></div>
     <div class="dialog-actions"><button class="primary-button" value="cancel">Ferdig</button></div>
   </form>

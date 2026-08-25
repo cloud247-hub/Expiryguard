@@ -1,10 +1,13 @@
-# ExpiryGuard frontend v5.2.0
+# ExpiryGuard frontend v5.3.0
 
-Includes the v5.1.7 mobile polish plus Microsoft Teams notification configuration.
+Frontend for the tenant-native ExpiryGuard portal.
 
-The **Teams-varsler** button is visible only to:
+v5.3.0 adds Microsoft Entra App Registration secret monitoring to the existing Apple/Intune expiry dashboard and Teams notification flow.
 
-- Cloud247 Super Admin
-- Tenant Admin
+New UI elements:
 
-Tenant Admin can only configure their own tenant. The stored webhook URL is never returned to the browser; the UI only shows whether a webhook is configured and its Microsoft host.
+- Entra app-secret source card.
+- Secret-specific detail metadata.
+- **Update Graph access** action under Manage customers for re-consent of existing customer tenants.
+
+No frontend configuration values are added. `config.js` remains unchanged.

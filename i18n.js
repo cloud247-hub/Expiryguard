@@ -7,6 +7,28 @@
   const listeners = new Set();
 
   const EN = {
+    'Entra app-secrets': 'Entra app secrets',
+    'Hold kontroll på Apple Push-sertifikater, ADE- og VPP-tokens, Microsoft Entra app-secrets og andre utløpsdatoer. Cloud247 får samlet oversikt, mens kundebrukere ser kun sin egen Microsoft-tenant.': 'Keep track of Apple Push certificates, ADE and VPP tokens, Microsoft Entra app secrets, and other expiration dates. Cloud247 gets a consolidated view, while customer users only see their own Microsoft tenant.',
+    'Multi-tenant oversikt med Microsoft Graph, Entra app-secrets, handlingsvinduer, live nedtelling og tenant-isolert tilgang.': 'Multi-tenant overview with Microsoft Graph, Entra app secrets, action windows, live countdowns, and tenant-isolated access.',
+    'Søk kunde, navn, type, Apple ID, App ID…': 'Search customer, name, type, Apple ID, App ID…',
+    'AUTOMATISK FRA MICROSOFT GRAPH': 'AUTOMATIC FROM MICROSOFT GRAPH',
+    'ExpiryGuard synkroniserer bare metadata som trengs for oversikten. Apple-token, sertifikat og selve Entra secret-verdien lagres aldri.': 'ExpiryGuard synchronizes only the metadata required for the overview. Apple tokens, certificates, and the actual Entra secret value are never stored.',
+    'Microsoft Entra app-secrets': 'Microsoft Entra app secrets',
+    'Hvis dashboardet redder deg fra en utløpt Apple-integrasjon eller app-secret hos en kunde, kan du støtte videre utvikling av Cloud247-verktøyene.': 'If the dashboard saves you from an expired Apple integration or app secret at a customer, you can support continued development of the Cloud247 tools.',
+    'Oppgi Tenant ID og kundenavn. ExpiryGuard lager én Microsoft admin-consent-lenke for Graph-tilgang og portalinnlogging. Graph-tilgangen omfatter Intune service configuration og lesing av App Registration-secretmetadata. Etter godkjenning tester backend Graph-tilgangen. Kunden setter deretter Assignment required = Yes og tildeler brukere under Users and groups. Roller tildeles inne i ExpiryGuard.': 'Enter the Tenant ID and customer name. ExpiryGuard creates one Microsoft admin-consent link for Graph access and portal sign-in. Graph access includes Intune service configuration and read access to App Registration secret metadata. After approval, the backend tests Graph access. The customer then sets Assignment required = Yes and assigns users under Users and groups. Roles are assigned inside ExpiryGuard.',
+    'Graph-tilgang': 'Graph access',
+    'For automatisk overvåking av Microsoft Entra app-secrets kreves Application.Read.All. Etter at tillatelsen er lagt til på ExpiryGuard Graph Connector, bruk Oppdater Graph-tilgang for eksisterende kunder slik at kunden kan gi admin consent på nytt. Dette sletter ikke eksisterende ExpiryGuard-data.': 'Automatic monitoring of Microsoft Entra app secrets requires Application.Read.All. After the permission is added to the ExpiryGuard Graph Connector, use Update Graph access for existing customers so the customer can grant admin consent again. This does not delete existing ExpiryGuard data.',
+    'Oppdater Graph-tilgang': 'Update Graph access',
+    'Start rotasjon av app-secret i god tid': 'Start app secret rotation well in advance',
+    'Client secrets kan gi direkte driftsstans når de utløper. Opprett en ny credential, oppdater tjenesten som bruker den og verifiser funksjon før den gamle hemmeligheten fjernes.': 'Client secrets can cause immediate service outages when they expire. Create a new credential, update the service that uses it, and verify functionality before removing the old secret.',
+    'ExpiryGuard leser kun metadata om App Registrations og passwordCredentials via Microsoft Graph. Selve secret-verdien kan ikke hentes fra Graph etter at den er opprettet. Cloud247 bruker 60 dager som operativ startgrense.': 'ExpiryGuard only reads metadata about App Registrations and passwordCredentials through Microsoft Graph. The actual secret value cannot be retrieved from Graph after it has been created. Cloud247 uses 60 days as the operational start threshold.',
+    'Bekreft hvilken applikasjon og integrasjon som bruker credentialen.': 'Confirm which application and integration uses the credential.',
+    'Opprett en ny client secret eller bytt til sertifikat/federated credential der det passer.': 'Create a new client secret or switch to a certificate/federated credential where appropriate.',
+    'Oppdater tjenesten, automasjonen eller integrasjonen med ny credential.': 'Update the service, automation, or integration with the new credential.',
+    'Test autentisering og avhengige funksjoner før gammel credential fjernes.': 'Test authentication and dependent functionality before removing the old credential.',
+    'Synkroniser ExpiryGuard og bekreft at den nye utløpsdatoen vises.': 'Synchronize ExpiryGuard and confirm that the new expiration date is shown.',
+    'Secret-navn': 'Secret name',
+    'Gyldig fra': 'Valid from',
     '💬 Teams-varsler': '💬 Teams notifications',
     'Teams-varsler': 'Teams notifications',
     'MICROSOFT TEAMS': 'MICROSOFT TEAMS',
@@ -536,8 +558,8 @@
     const mode = document.body?.dataset?.portalMode === 'customer' ? 'customer' : 'management';
     const meta = document.querySelector('meta[name="description"]');
     if (meta) meta.setAttribute('content', language === 'en'
-      ? (mode === 'customer' ? 'Secure ExpiryGuard customer portal for expiration dates in your own Microsoft tenant.' : 'Multi-tenant ExpiryGuard management dashboard for Microsoft Intune expiration dates.')
-      : (mode === 'customer' ? 'Sikker ExpiryGuard-kundeportal for utløpsdatoer i din egen Microsoft-tenant.' : 'Multi-tenant ExpiryGuard management-dashboard for utløpsdatoer fra Microsoft Intune.'));
+      ? (mode === 'customer' ? 'Secure ExpiryGuard customer portal for expiration dates in your own Microsoft tenant.' : 'Multi-tenant ExpiryGuard management dashboard for Microsoft Intune and Microsoft Entra app-secret expiration dates.')
+      : (mode === 'customer' ? 'Sikker ExpiryGuard-kundeportal for utløpsdatoer i din egen Microsoft-tenant.' : 'Multi-tenant ExpiryGuard management-dashboard for utløpsdatoer fra Microsoft Intune og Microsoft Entra app-secrets.'));
     document.title = language === 'en'
       ? (mode === 'customer' ? 'ExpiryGuard Customer Portal | Cloud247' : 'ExpiryGuard Management | Cloud247')
       : (mode === 'customer' ? 'ExpiryGuard Kundeportal | Cloud247' : 'ExpiryGuard Management | Cloud247');
