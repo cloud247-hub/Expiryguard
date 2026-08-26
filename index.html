@@ -24,7 +24,7 @@
     <div class="auth-intro">
       <p class="cloud-eyebrow">CLOUD TOOLBOX</p>
       <h1>ExpiryGuard</h1>
-      <p>Hold kontroll på Apple Push-sertifikater, ADE- og VPP-tokens, Microsoft Entra app-secrets og andre utløpsdatoer. Cloud247 får samlet oversikt, mens kundebrukere ser kun sin egen Microsoft-tenant.</p>
+      <p>Hold kontroll på Apple Push-sertifikater, ADE- og VPP-tokens, Microsoft Entra app-secrets og andre utløpsdatoer – før de rekker å bli et driftsproblem.</p>
       <div class="hero-trust-row" aria-label="ExpiryGuard-funksjoner"><span>Microsoft Graph</span><span>Entra app-secrets</span><span>Multi-tenant</span><span>Fornyelsesplan</span><span>Live nedtelling</span></div>
     </div>
     <article class="auth-card cloud-panel">
@@ -32,13 +32,89 @@
         <div>
           <p class="hero-card-kicker">MICROSOFT-INNLOGGING</p>
           <h2>Åpne dashboardet</h2>
-          <p>Logg inn med Microsoft-kontoen din. Cloud247 Super Admin ser alle kunder; kundebrukere får kun tilgang til sin egen tenant.</p>
+          <p>Logg inn med Microsoft-kontoen din. Tilgang styres av Microsoft Entra og rollene som er satt i ExpiryGuard.</p>
         </div>
         <span class="auth-mark" aria-hidden="true">◷</span>
       </div>
       <button class="microsoft-button portal-login-button" id="signInButton" type="button"><span class="microsoft-logo" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span>Logg inn med Microsoft</span></button>
       <small id="authStatus">Microsoft Entra styrer hvem som får logge inn. Rollen styres i ExpiryGuard. Ingen passord lagres i ExpiryGuard.</small>
     </article>
+    <section class="auth-product-story" aria-labelledby="productStoryTitle">
+      <div class="product-story-copy">
+        <p class="eyebrow">DETTE GJØR EXPIRYGUARD</p>
+        <h2 id="productStoryTitle">Få kontroll før kritiske integrasjoner stopper</h2>
+        <p class="product-story-lead">ExpiryGuard samler utløpsdatoer fra Microsoft Graph i ett dashboard og viser ikke bare når noe utløper, men når du bør starte fornyelsen. Du får en tydelig arbeidskø, live nedtelling og varsling før sertifikater, tokens eller app-secrets blir et driftsproblem.</p>
+        <div class="product-feature-grid">
+          <article>
+            <span class="product-feature-icon" aria-hidden="true">↻</span>
+            <strong>Automatisk oversikt</strong>
+            <p>Synkroniser Apple MDM Push, ADE, Apps &amp; Books/VPP og Microsoft Entra app-secrets automatisk via Microsoft Graph.</p>
+          </article>
+          <article>
+            <span class="product-feature-icon" aria-hidden="true">◷</span>
+            <strong>Fornyelsesplan</strong>
+            <p>ExpiryGuard beregner når arbeidet bør starte og skiller mellom planlagt, start nå, haster, kritisk og utløpt.</p>
+          </article>
+          <article>
+            <span class="product-feature-icon" aria-hidden="true">💬</span>
+            <strong>Teams-varsler og roller</strong>
+            <p>Send varsler til Teams og gi Viewer, Editor eller Tenant Admin tilgang uten å gi mer Microsoft-tilgang enn nødvendig.</p>
+          </article>
+        </div>
+      </div>
+
+      <div class="product-demo" aria-label="Eksempel på ExpiryGuard-dashboard">
+        <div class="product-demo-head">
+          <div>
+            <p class="demo-label">LITEN DEMO</p>
+            <h3>Slik kan oversikten se ut</h3>
+          </div>
+          <span class="demo-live"><i></i> LIVE</span>
+        </div>
+        <div class="demo-next-action">
+          <span>NESTE ANBEFALTE HANDLING</span>
+          <strong>Backup Automation – client secret</strong>
+          <small>Eksempel AS</small>
+          <b>Start fornyelse nå</b>
+        </div>
+        <div class="demo-items">
+          <div class="demo-item">
+            <span class="demo-type">Microsoft Entra</span>
+            <div><strong>Backup Automation – client secret</strong><small>Utløper om 12 dager</small></div>
+            <span class="demo-status critical">Kritisk</span>
+          </div>
+          <div class="demo-item">
+            <span class="demo-type">Apple</span>
+            <div><strong>Apple MDM Push Certificate</strong><small>Utløper om 41 dager</small></div>
+            <span class="demo-status planned">Planlagt</span>
+          </div>
+          <div class="demo-item">
+            <span class="demo-type">Intune</span>
+            <div><strong>Apps &amp; Books / VPP token</strong><small>Utløper om 27 dager</small></div>
+            <span class="demo-status urgent">Haster</span>
+          </div>
+        </div>
+        <p class="demo-footnote">Eksempeldata – ingen kundedata vises i demoen.</p>
+      </div>
+    </section>
+
+    <section class="auth-contact-card" aria-labelledby="contactDemoTitle">
+      <div class="contact-copy">
+        <p class="eyebrow">DEMO OG OPPSETT</p>
+        <h2 id="contactDemoTitle">Vil du bruke ExpiryGuard i din tenant?</h2>
+        <p>Ta kontakt for en kort demo. Jeg kan også hjelpe med hele oppsettet: koble tenant til Microsoft Graph, gi riktig admin consent, sette opp brukere og roller og aktivere Teams-varsler.</p>
+        <div class="contact-steps" aria-label="Oppsett av ExpiryGuard">
+          <span><b>1</b> Kort demo</span>
+          <span><b>2</b> Koble til tenant</span>
+          <span><b>3</b> Roller og varsling</span>
+        </div>
+      </div>
+      <a class="primary-button contact-button"
+   href="mailto:expiryguard@cloud247.no?subject=ExpiryGuard%20-%20demo%20og%20oppsett">
+  Kontakt meg →
+</a>
+    </section>
+
     <div class="auth-more-tools">
       <div class="more-tools-card portal-more-tools-card">
         <div><p class="eyebrow">FLERE CLOUD247-VERKTØY</p><h2>Se mine andre verktøy</h2><p>Flere små verktøy for Microsoft 365, Intune, DNS og sikkerhet.</p></div>
@@ -148,6 +224,7 @@
   </section>
 
   <section class="more-tools"><div class="shell more-tools-card"><div><p class="eyebrow">FLERE CLOUD247-VERKTØY</p><h2>Se mine andre verktøy</h2><p>Flere små verktøy for Microsoft 365, Intune, DNS og sikkerhet.</p></div><a class="primary-button" href="https://cloud247.no/">Åpne Cloud Toolbox →</a></div></section>
+  <section class="coffee-section" aria-labelledby="coffee-title"><div class="shell"><div class="coffee-card"><div class="coffee-icon" aria-hidden="true">☕</div><div class="coffee-copy"><p class="eyebrow dark">INGEN UTLØPTE TOKENS. FORHÅPENTLIGVIS.</p><h2 id="coffee-title">Hold ExpiryGuard våken</h2><p>Hvis dashboardet redder deg fra en utløpt Apple-integrasjon eller app-secret hos en kunde, kan du støtte videre utvikling av Cloud247-verktøyene.</p></div><div class="coffee-action"><a class="vipps-button" href="https://qr.vipps.no/box/90e4bd01-a470-474a-98fa-8b48f69b0f4e/pay-in" target="_blank" rel="noopener noreferrer">Spander en slurk</a></div></div></div></section>
 </main>
 
 <footer class="site-footer" id="appFooter" hidden><div class="shell footer-inner"><span>© <span id="year"></span> Cloud247</span><a href="https://cloud247.no/">cloud247.no</a></div></footer>
