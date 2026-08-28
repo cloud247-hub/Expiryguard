@@ -94,12 +94,12 @@
     tenantList: $('tenantList'), allTenantCount: $('allTenantCount'), addTenant: $('addTenantButton'), manageTenants: $('manageTenantsButton'),
     tenantDialog: $('tenantDialog'), tenantForm: $('tenantForm'), tenantName: $('tenantName'), tenantId: $('tenantId'), cancelTenant: $('cancelTenant'),
     manageDialog: $('manageDialog'), manageTenantList: $('manageTenantList'),
-    syncAll: $('syncAllButton'), notifications: $('notificationsButton'), fullscreen: $('fullscreenButton'), displayMode: $('displayModeButton'),
+    syncAll: $('syncAllButton'), syncFeedback: $('syncFeedback'), notifications: $('notificationsButton'), fullscreen: $('fullscreenButton'), displayMode: $('displayModeButton'),
     addManual: $('addManualButton'), manualDialog: $('manualDialog'), manualForm: $('manualForm'), manualId: $('manualId'), manualTenant: $('manualTenant'), manualKind: $('manualKind'), manualName: $('manualName'), manualExpiry: $('manualExpiry'), manualReminder: $('manualReminder'), manualUrgent: $('manualUrgent'), manualCritical: $('manualCritical'), manualImpact: $('manualImpact'), manualOwner: $('manualOwner'), manualUrl: $('manualUrl'), manualNotes: $('manualNotes'), manualPolicyHint: $('manualPolicyHint'), cancelManual: $('cancelManual'),
     settings: $('settingsButton'), settingsDialog: $('settingsDialog'), settingsForm: $('settingsForm'), defaultReminder: $('defaultReminder'), notificationCadence: $('notificationCadence'), notifyEnabled: $('notifyEnabled'), rotateTenants: $('rotateTenants'), rotateSeconds: $('rotateSeconds'), cancelSettings: $('cancelSettings'),
     importFile: $('importFile'), exportJson: $('exportJsonButton'), exportCsv: $('exportCsvButton'), exportIcs: $('exportIcsButton'), search: $('searchInput'), filter: $('statusFilter'),
     statTotal: $('statTotal'), statPlanned: $('statPlanned'), statAction: $('statAction'), statUrgent: $('statUrgent'), statCritical: $('statCritical'), statExpired: $('statExpired'),
-    overviewTitle: $('overviewTitle'), syncLine: $('syncLine'), displayMeta: $('displayMeta'), itemsBody: $('itemsBody'), tableWrap: $('tableWrap'), empty: $('emptyState'), dashboardGrid: $('dashboardGrid'),
+    overviewTitle: $('overviewTitle'), overviewSection: $('expiryOverview'), syncLine: $('syncLine'), displayMeta: $('displayMeta'), itemsBody: $('itemsBody'), tableWrap: $('tableWrap'), empty: $('emptyState'), dashboardGrid: $('dashboardGrid'),
     actionCard: $('actionCard'), actionQueue: $('actionQueue'), healthBanner: $('healthBanner'), activityList: $('activityList'),
     heroTitle: $('heroNextTitle'), heroTenant: $('heroNextTenant'), heroCountdown: $('heroCountdown'), heroRecommendation: $('heroRecommendation'), heroDot: $('heroStatusDot'),
     detailDialog: $('detailDialog'), detailTitle: $('detailTitle'), detailTenant: $('detailTenant'), detailSummary: $('detailSummary'), detailRecommendationTitle: $('detailRecommendationTitle'), detailRecommendation: $('detailRecommendation'), detailRunbook: $('detailRunbook'), detailMetadata: $('detailMetadata'), workflowButtons: $('workflowButtons'), workflowNote: $('workflowNote'), saveWorkflow: $('saveWorkflowButton'), copyTicket: $('copyTicketButton'), detailDocs: $('detailDocsLink'), detailAdmin: $('detailAdminLink'),
@@ -117,6 +117,8 @@
   let selectedTenant = 'all';
   let pendingAction = null;
   let refreshing = false;
+  let syncInProgress = false;
+  let syncButtonResetTimer = null;
   let detailItemId = '';
   let detailSelectedWorkflow = 'not_started';
   let rotationTimer = null;
@@ -143,6 +145,68 @@
   function canWrite() { return isManagement() || ['tenant_admin', 'tenant_editor'].includes(currentUser?.role); }
   function toast(msg) { els.toast.textContent = tr(msg); els.toast.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => els.toast.classList.remove('show'), 2800); }
   function esc(v = '') { return String(v).replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c])); }
+
+  function defaultSyncButtonLabel() {
+    return isManagement() ? L('↻ Synkroniser alle', '↻ Sync all') : L('↻ Synkroniser', '↻ Sync');
+  }
+
+  function setSyncButtonState(state = 'idle') {
+    if (!els.syncAll) return;
+    clearTimeout(syncButtonResetTimer);
+    els.syncAll.classList.remove('is-syncing', 'is-success', 'is-warning', 'is-error');
+    els.syncAll.removeAttribute('aria-busy');
+    els.syncAll.disabled = false;
+    if (state === 'syncing') {
+      els.syncAll.classList.add('is-syncing');
+      els.syncAll.setAttribute('aria-busy', 'true');
+      els.syncAll.disabled = true;
+      els.syncAll.textContent = L('Synkroniserer…', 'Synchronizing…');
+      return;
+    }
+    if (state === 'success') {
+      els.syncAll.classList.add('is-success');
+      els.syncAll.textContent = L('✓ Synkronisert', '✓ Synchronized');
+    } else if (state === 'warning') {
+      els.syncAll.classList.add('is-warning');
+      els.syncAll.textContent = L('✓ Synk ferdig', '✓ Sync complete');
+    } else if (state === 'error') {
+      els.syncAll.classList.add('is-error');
+      els.syncAll.textContent = L('! Synk feilet', '! Sync failed');
+    } else {
+      els.syncAll.textContent = defaultSyncButtonLabel();
+      return;
+    }
+    syncButtonResetTimer = setTimeout(() => {
+      if (!syncInProgress && els.syncAll) {
+        els.syncAll.classList.remove('is-success', 'is-warning', 'is-error');
+        els.syncAll.textContent = defaultSyncButtonLabel();
+      }
+    }, 3200);
+  }
+
+  function showSyncFeedback(state, { target = '', ok = 0, failed = 0, message = '' } = {}) {
+    if (!els.syncFeedback) return;
+    const when = fmtDate(new Date().toISOString());
+    let icon = '↻';
+    let title = L('Synkroniserer…', 'Synchronizing…');
+    let detail = target ? L(`${target} · henter nye data`, `${target} · fetching fresh data`) : L('Henter nye data', 'Fetching fresh data');
+    if (state === 'success') {
+      icon = '✓';
+      title = L('Synkronisering fullført', 'Synchronization complete');
+      detail = `${target ? `${target} · ` : ''}${ok} OK · ${failed} ${L('feil', 'failed')} · ${when}`;
+    } else if (state === 'warning') {
+      icon = '!';
+      title = L('Synkronisering fullført med feil', 'Synchronization completed with errors');
+      detail = `${target ? `${target} · ` : ''}${ok} OK · ${failed} ${L('feil', 'failed')} · ${when}`;
+    } else if (state === 'error') {
+      icon = '!';
+      title = L('Synkronisering feilet', 'Synchronization failed');
+      detail = `${target ? `${target} · ` : ''}${message || L('Kunne ikke synkronisere data', 'Could not synchronize data')} · ${when}`;
+    }
+    els.syncFeedback.className = `sync-feedback ${state}`;
+    els.syncFeedback.innerHTML = `<span class="sync-feedback-icon" aria-hidden="true">${icon}</span><span class="sync-feedback-copy"><strong>${esc(title)}</strong><small>${esc(detail)}</small></span>`;
+    els.syncFeedback.hidden = false;
+  }
 
   async function validateAuthConfiguration() {
     if (!API_BASE || API_BASE.includes('YOUR-SUBDOMAIN')) throw new Error('Worker-URL er ikke konfigurert i config.js.');
@@ -215,7 +279,11 @@
     document.body.classList.toggle('viewer-mode', customer && !write);
     if (els.addTenant) els.addTenant.hidden = !isManagement();
     if (els.manageTenants) els.manageTenants.hidden = !isManagement();
-    if (els.syncAll) els.syncAll.hidden = !isManagement();
+    if (els.syncAll) {
+      const canSync = isManagement() || isTenantAdmin();
+      els.syncAll.hidden = !canSync;
+      if (canSync && !syncInProgress && !els.syncAll.classList.contains('is-success') && !els.syncAll.classList.contains('is-warning') && !els.syncAll.classList.contains('is-error')) els.syncAll.textContent = defaultSyncButtonLabel();
+    }
     if (els.importButton) els.importButton.hidden = !isManagement();
     if (els.exportJson) els.exportJson.hidden = !isManagement();
     if (els.exportCsv) els.exportCsv.hidden = !isManagement();
@@ -380,6 +448,12 @@
     els.statUrgent.textContent = counts.urgent;
     els.statCritical.textContent = counts.critical;
     els.statExpired.textContent = counts.expired;
+    const active = els.filter?.value || 'all';
+    document.querySelectorAll('[data-stage-filter]').forEach(card => {
+      const selected = card.dataset.stageFilter === active;
+      card.classList.toggle('active', selected);
+      card.setAttribute('aria-pressed', selected ? 'true' : 'false');
+    });
   }
 
   function renderActionQueue() {
@@ -414,7 +488,9 @@
       return `<button class="expiry-tile ${stage}" data-detail-id="${esc(i.id)}" type="button"><div class="expiry-tile-head"><small>${esc(tenantName(i.tenantId))}</small><span class="badge ${stage}">${stageLabel(stage)}</span></div><h3>${esc(i.name)}</h3><small>${esc(sourceLabel(i.source))}</small><div class="tile-plan"><span>${L('Start:', 'Start:')} <b>${fmtDate(recommendedStartAt(i), false)}</b></span><span>${L('Utløp:', 'Expiration:')} <b>${fmtDate(i.expiresAt, false)}</b></span></div><div class="live-expiry countdown" data-item-id="${esc(i.id)}">${formatRemaining(i.expiresAt)}</div><div class="tile-footer"><span>${esc(impactLabel(p.impact))} ${L('konsekvens', 'impact')}</span><span class="workflow-badge ${workflowClass(i.workflowState)}">${esc(workflowLabel(i.workflowState))}</span></div></button>`;
     }).join('');
 
-    els.overviewTitle.textContent = selectedTenant === 'all' ? L('Alle kunder', 'All customers') : tenantName(selectedTenant);
+    const overviewBase = selectedTenant === 'all' ? L('Alle kunder', 'All customers') : tenantName(selectedTenant);
+    const activeStage = els.filter?.value || 'all';
+    els.overviewTitle.textContent = activeStage === 'all' ? overviewBase : `${overviewBase} · ${stageLabel(activeStage)}`;
     const syncDates = tenants.filter(t => selectedTenant === 'all' || t.id === selectedTenant).map(t => parseDate(t.lastSyncAt)).filter(Boolean).sort((a, b) => b - a);
     els.syncLine.textContent = syncDates[0] ? L(`Sist synkronisert ${fmtDate(syncDates[0].toISOString())}`, `Last synchronized ${fmtDate(syncDates[0].toISOString())}`) : L('Ikke synkronisert ennå', 'Not synchronized yet');
     renderStats();
@@ -774,13 +850,46 @@
   }
 
   async function sync(tenantId = null) {
-    if (!ensureAdmin()) return;
-    toast(tenantId ? L('Synkroniserer kunde…', 'Synchronizing customer…') : L('Synkroniserer alle kunder…', 'Synchronizing all customers…'));
+    const management = isManagement();
+    if (!management && !isTenantAdmin()) {
+      toast(L('Denne handlingen krever Tenant Admin eller Cloud247 Super Admin', 'This action requires Tenant Admin or Cloud247 Super Admin'));
+      return;
+    }
+    if (syncInProgress) {
+      toast(L('Synkronisering pågår allerede', 'Synchronization is already in progress'));
+      return;
+    }
+
+    // A customer Tenant Admin may only synchronize the tenant from the signed-in session.
+    // Never trust a tenant ID supplied by the browser for customer-mode authorization.
+    const targetTenantId = management ? tenantId : (currentUser?.tenantId || tenants[0]?.id || null);
+    if (!management && !targetTenantId) {
+      toast(L('Fant ikke tenant for den innloggede brukeren', 'Could not determine the tenant for the signed-in user'));
+      return;
+    }
+
+    const syncAllTenants = management && !targetTenantId;
+    const targetLabel = syncAllTenants ? L('Alle kunder', 'All customers') : (tenantName(targetTenantId) || currentUser?.customerName || L('Din tenant', 'Your tenant'));
+    syncInProgress = true;
+    setSyncButtonState('syncing');
+    showSyncFeedback('syncing', { target: targetLabel });
+    toast(syncAllTenants ? L('Synkroniserer alle kunder…', 'Synchronizing all customers…') : L('Synkroniserer…', 'Synchronizing…'));
     try {
-      const result = await api('/api/sync', { method: 'POST', body: JSON.stringify(tenantId ? { tenantId } : {}) });
-      toast(L(`Synk ferdig: ${result.ok || 0} OK, ${result.failed || 0} feil`, `Sync complete: ${result.ok || 0} OK, ${result.failed || 0} failed`));
+      const result = await api('/api/sync', { method: 'POST', body: JSON.stringify(targetTenantId ? { tenantId: targetTenantId } : {}) });
+      const ok = Number(result.ok || 0);
+      const failed = Number(result.failed || 0);
       await refresh({ quiet: true });
-    } catch (err) { toast(err.message || 'Synkronisering feilet'); }
+      const state = failed > 0 ? 'warning' : 'success';
+      showSyncFeedback(state, { target: targetLabel, ok, failed });
+      setSyncButtonState(state);
+      toast(L(`Synk ferdig: ${ok} OK, ${failed} feil`, `Sync complete: ${ok} OK, ${failed} failed`));
+    } catch (err) {
+      showSyncFeedback('error', { target: targetLabel, message: err.message || '' });
+      setSyncButtonState('error');
+      toast(err.message || L('Synkronisering feilet', 'Synchronization failed'));
+    } finally {
+      syncInProgress = false;
+    }
   }
 
   function ensureAdmin() { if (isManagement()) return true; toast('Denne handlingen krever Cloud247 Super Admin'); return false; }
@@ -1036,7 +1145,7 @@
   els.cancelTenant.addEventListener('click', () => els.tenantDialog.close());
   els.tenantForm.addEventListener('submit', async e => { e.preventDefault(); try { await startTenantConsent(els.tenantId.value, els.tenantName.value); } catch (err) { toast(err.message || L('Kunne ikke opprette consent-lenke', 'Could not create consent link')); } });
   els.manageTenantList.addEventListener('click', async e => { const row = e.target.closest('.manage-row'); if (!row) return; const id = row.dataset.id; const t = tenantById(id); if (e.target.closest('.sync-tenant')) await sync(id); if (e.target.closest('.reconsent-tenant')) { try { await startTenantConsent(id, t?.displayName || id); } catch (err) { toast(err.message || L('Kunne ikke oppdatere Graph-tilgang', 'Could not update Graph access')); } return; } if (e.target.closest('.remove-tenant')) { pendingAction = { type: 'removeTenant', id }; els.confirmTitle.textContent = L('Fjerne kunde?', 'Remove customer?'); els.confirmText.textContent = L(`${t?.displayName || id} og lagrede ExpiryGuard-data for kunden fjernes. Admin consent i kundens tenant påvirkes ikke.`, `${t?.displayName || id} and stored ExpiryGuard data for the customer will be removed. Admin consent in the customer tenant is not affected.`); els.confirm.showModal(); } });
-  els.syncAll.addEventListener('click', () => sync());
+  els.syncAll.addEventListener('click', () => isManagement() ? sync() : sync(currentUser?.tenantId || tenants[0]?.id || null));
   els.notifications.addEventListener('click', requestNotifications);
   els.fullscreen.addEventListener('click', async () => { try { if (!document.fullscreenElement) await document.documentElement.requestFullscreen(); else await document.exitFullscreen(); } catch { toast('Fullskjerm støttes ikke i denne nettleseren'); } });
   els.displayMode.addEventListener('click', () => { document.body.classList.toggle('display-mode'); els.displayMode.textContent = document.body.classList.contains('display-mode') ? L('← Avslutt dashboard-modus', '← Exit dashboard mode') : L('◫ Dashboard-modus', '◫ Dashboard mode'); renderItems(); startRotation(); });
@@ -1098,6 +1207,18 @@
     } catch (err) { toast(err.message || 'Kunne ikke fjerne'); } finally { pendingAction = null; }
   });
 
+  document.querySelector('.v3-stats')?.addEventListener('click', e => {
+    const card = e.target.closest('[data-stage-filter]');
+    if (!card || !els.filter) return;
+    const requested = card.dataset.stageFilter || 'all';
+    const next = requested !== 'all' && els.filter.value === requested ? 'all' : requested;
+    els.filter.value = next;
+    renderItems();
+    if (next !== 'all' && els.overviewSection) {
+      window.setTimeout(() => els.overviewSection.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+    }
+  });
+
   els.search.addEventListener('input', renderItems); els.filter.addEventListener('change', renderItems);
   els.exportJson.addEventListener('click', () => download(`expiryguard-v5.3.0-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify({ version: '5.3.0', exportedAt: new Date().toISOString(), tenants, items, events }, null, 2), 'application/json'));
   els.exportIcs.addEventListener('click', exportCalendar);
@@ -1142,6 +1263,7 @@
     if (els.teamsDialog?.open) renderTeamsNotificationSettings();
     if (els.auditDialog?.open) renderAuditLog();
     updateNotificationButton();
+    applyAccessMode();
   });
 
   async function init() {

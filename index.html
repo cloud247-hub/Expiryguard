@@ -109,10 +109,7 @@
           <span><b>3</b> Roller og varsling</span>
         </div>
       </div>
-      <a class="primary-button contact-button"
-   href="mailto:expiryguard@cloud247.no?subject=ExpiryGuard%20-%20demo%20og%20oppsett">
-  Kontakt meg →
-</a>
+      <a class="primary-button contact-button" href="mailto:expiryguard@cloud247.no?subject=ExpiryGuard%20-%20demo%20og%20oppsett">Kontakt meg →</a>
     </section>
 
     <div class="auth-more-tools">
@@ -141,6 +138,7 @@
         <div class="hero-countdown" id="heroCountdown">–</div>
         <p class="hero-recommendation" id="heroRecommendation">Venter på data…</p>
         <div class="hero-actions"><button class="primary-button" id="syncAllButton" type="button">↻ Synkroniser alle</button><button class="secondary-button hero-secondary" id="notificationsButton" type="button">🔔 Varsler</button></div>
+        <div id="syncFeedback" class="sync-feedback" role="status" aria-live="polite" hidden></div>
       </article>
     </div>
   </section>
@@ -177,12 +175,12 @@
         <div id="healthBanner" class="health-banner" hidden></div>
 
         <section class="stats-grid v3-stats" aria-label="Oversikt">
-          <article class="stat-card"><span>Totalt</span><strong id="statTotal">0</strong><small>utløpsdatoer</small></article>
-          <article class="stat-card ok"><span>Planlagt</span><strong id="statPlanned">0</strong><small>ikke tid ennå</small></article>
-          <article class="stat-card action"><span>Start nå</span><strong id="statAction">0</strong><small>innen anbefalt vindu</small></article>
-          <article class="stat-card urgent"><span>Haster</span><strong id="statUrgent">0</strong><small>bør være i gang</small></article>
-          <article class="stat-card danger"><span>Kritisk</span><strong id="statCritical">0</strong><small>prioriter i dag</small></article>
-          <article class="stat-card expired"><span>Utløpt</span><strong id="statExpired">0</strong><small>krever handling</small></article>
+          <button class="stat-card stat-filter-card" data-stage-filter="all" type="button" aria-pressed="true"><span>Totalt</span><strong id="statTotal">0</strong><small>utløpsdatoer</small></button>
+          <button class="stat-card stat-filter-card ok" data-stage-filter="planned" type="button" aria-pressed="false"><span>Planlagt</span><strong id="statPlanned">0</strong><small>ikke tid ennå</small></button>
+          <button class="stat-card stat-filter-card action" data-stage-filter="action" type="button" aria-pressed="false"><span>Start nå</span><strong id="statAction">0</strong><small>innen anbefalt vindu</small></button>
+          <button class="stat-card stat-filter-card urgent" data-stage-filter="urgent" type="button" aria-pressed="false"><span>Haster</span><strong id="statUrgent">0</strong><small>bør være i gang</small></button>
+          <button class="stat-card stat-filter-card danger" data-stage-filter="critical" type="button" aria-pressed="false"><span>Kritisk</span><strong id="statCritical">0</strong><small>prioriter i dag</small></button>
+          <button class="stat-card stat-filter-card expired" data-stage-filter="expired" type="button" aria-pressed="false"><span>Utløpt</span><strong id="statExpired">0</strong><small>krever handling</small></button>
         </section>
 
         <section class="action-card" id="actionCard">
@@ -193,7 +191,7 @@
           <div id="actionQueue" class="action-queue"></div>
         </section>
 
-        <section class="content-card">
+        <section class="content-card" id="expiryOverview">
           <div class="content-head">
             <div><p class="eyebrow dark">OVERSIKT</p><h2 id="overviewTitle">Alle kunder</h2><p class="sync-line" id="syncLine">Ikke synkronisert ennå</p><p class="display-meta" id="displayMeta"></p></div>
             <div class="filters"><input id="searchInput" type="search" placeholder="Søk kunde, navn, type, Apple ID, App ID…" aria-label="Søk"><select id="statusFilter" aria-label="Filtrer status"><option value="all">Alle statuser</option><option value="expired">Utløpt</option><option value="critical">Kritisk</option><option value="urgent">Haster</option><option value="action">Start nå</option><option value="planned">Planlagt</option></select></div>
@@ -224,6 +222,7 @@
   </section>
 
   <section class="more-tools"><div class="shell more-tools-card"><div><p class="eyebrow">FLERE CLOUD247-VERKTØY</p><h2>Se mine andre verktøy</h2><p>Flere små verktøy for Microsoft 365, Intune, DNS og sikkerhet.</p></div><a class="primary-button" href="https://cloud247.no/">Åpne Cloud Toolbox →</a></div></section>
+  <section class="coffee-section" aria-labelledby="coffee-title"><div class="shell"><div class="coffee-card"><div class="coffee-icon" aria-hidden="true">☕</div><div class="coffee-copy"><p class="eyebrow dark">INGEN UTLØPTE TOKENS. FORHÅPENTLIGVIS.</p><h2 id="coffee-title">Hold ExpiryGuard våken</h2><p>Hvis dashboardet redder deg fra en utløpt Apple-integrasjon eller app-secret hos en kunde, kan du støtte videre utvikling av Cloud247-verktøyene.</p></div><div class="coffee-action"><a class="vipps-button" href="https://qr.vipps.no/box/90e4bd01-a470-474a-98fa-8b48f69b0f4e/pay-in" target="_blank" rel="noopener noreferrer">Spander en slurk</a></div></div></div></section>
 </main>
 
 <footer class="site-footer" id="appFooter" hidden><div class="shell footer-inner"><span>© <span id="year"></span> Cloud247</span><a href="https://cloud247.no/">cloud247.no</a></div></footer>
