@@ -1,40 +1,12 @@
-# ExpiryGuard frontend v5.3.0
+# ExpiryGuard v5.3.5 – Security Hardening
 
-Frontend for the tenant-native ExpiryGuard portal.
+Frontend release paired with Worker v5.3.5.
 
-v5.3.0 adds Microsoft Entra App Registration secret monitoring to the existing Apple/Intune expiry dashboard and Teams notification flow.
+Security-focused changes:
+- CSP tightened: frontend no longer allows direct `connect-src` to `login.microsoftonline.com`; OAuth stays server-side through `api.expiry.cloud247.no`.
+- `base-uri` is `none`.
+- `X-Permitted-Cross-Domain-Policies: none` added to the header template.
+- Service Worker cache bumped and continues to exclude API, OAuth, navigation, `config.js`, cross-origin and Authorization requests.
+- NO/EN includes the generic hardened server-error message.
 
-New UI elements:
-
-- Entra app-secret source card.
-- Secret-specific detail metadata.
-- **Update Graph access** action under Manage customers for re-consent of existing customer tenants.
-
-No frontend configuration values are added. `config.js` remains unchanged.
-
-
-## v5.3.1 frontend homepage
-
-Frontend-only update to the signed-out landing page:
-
-- shorter hero copy
-- product explanation section
-- static example dashboard/demo
-- demo/setup contact section
-- existing Cloud247 tools section retained unchanged
-- NO/EN translations and service-worker cache bump
-
-Worker/API remains v5.3.0.
-
-## v5.3.2 Tenant Admin sync
-
-Tenant Admin can synchronize only the signed-in customer tenant. Cloud247 Super Admin keeps the global Sync all action. No D1 migration is required.
-
-
-## v5.3.3 frontend UX
-
-- Sync-knappen viser nå pågående synk med spinner og et tydelig animert resultatkort når synk er fullført eller feiler.
-- Cloud247 Super Admin beholder `Synkroniser alle`; Tenant Admin beholder `Synkroniser` for kun egen tenant.
-- Statusflisene Totalt, Planlagt, Start nå, Haster, Kritisk og Utløpt er klikkbare og styrer det eksisterende statusfilteret.
-- Klikk på aktiv statusflis en gang til for å gå tilbake til alle statuser.
-- Frontend-only endring. Ingen D1-migrering eller Worker-endring kreves fra v5.3.2.
+The frontend still uses `https://api.expiry.cloud247.no` as its API base.
