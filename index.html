@@ -9,7 +9,7 @@
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://api.expiry.cloud247.no https://cloudflareinsights.com; object-src 'none'; base-uri 'none'; form-action 'self'; frame-src 'none'; worker-src 'self'; manifest-src 'self'; upgrade-insecure-requests">
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=5.4.0">
 </head>
 <body class="management-portal" data-portal-mode="management">
 <header class="site-header">
@@ -166,6 +166,8 @@
             <button class="secondary-button" id="exportIcsButton" type="button">Eksporter kalender</button>
             <button class="secondary-button" id="portalUsersButton" type="button">👥 Brukere og roller</button>
             <button class="secondary-button" id="teamsNotificationsButton" type="button">💬 Teams-varsler</button>
+            <button class="secondary-button" id="emailNotificationsButton" type="button" hidden>&#9993; E-postvarsler</button>
+            <button class="secondary-button" id="notificationLogButton" type="button" hidden>Varslingslogg</button>
             <button class="secondary-button" id="auditLogButton" type="button">🛡 Sikkerhetslogg</button>
             <button class="secondary-button" id="settingsButton" type="button">⚙ Innstillinger</button>
           </div>
@@ -222,9 +224,10 @@
   </section>
 
   <section class="more-tools"><div class="shell more-tools-card"><div><p class="eyebrow">FLERE CLOUD247-VERKTØY</p><h2>Se mine andre verktøy</h2><p>Flere små verktøy for Microsoft 365, Intune, DNS og sikkerhet.</p></div><a class="primary-button" href="https://cloud247.no/">Åpne Cloud Toolbox →</a></div></section>
+  <section class="coffee-section" aria-labelledby="coffee-title"><div class="shell"><div class="coffee-card"><div class="coffee-icon" aria-hidden="true">☕</div><div class="coffee-copy"><p class="eyebrow dark">INGEN UTLØPTE TOKENS. FORHÅPENTLIGVIS.</p><h2 id="coffee-title">Hold ExpiryGuard våken</h2><p>Hvis dashboardet redder deg fra en utløpt Apple-integrasjon eller app-secret hos en kunde, kan du støtte videre utvikling av Cloud247-verktøyene.</p></div><div class="coffee-action"><a class="vipps-button" href="https://qr.vipps.no/box/90e4bd01-a470-474a-98fa-8b48f69b0f4e/pay-in" target="_blank" rel="noopener noreferrer">Spander en slurk</a></div></div></div></section>
 </main>
 
-<footer class="site-footer" id="appFooter" hidden><div class="shell footer-inner"><span>© <span id="year"></span> Cloud247</span><a href="https://cloud247.no/">cloud247.no</a></div></footer>
+<footer class="site-footer" id="appFooter" hidden><div class="shell footer-inner"><span>© <span id="year"></span> Cloud247</span><span class="app-version">v5.4.0</span><a href="https://cloud247.no/">cloud247.no</a></div></footer>
 
 <dialog id="tenantDialog">
   <form method="dialog" id="tenantForm">
@@ -314,6 +317,49 @@
   </form>
 </dialog>
 
+<dialog id="emailNotificationsDialog" class="email-notifications-dialog" aria-labelledby="emailDialogTitle">
+  <form id="emailNotificationsForm">
+    <div class="dialog-head"><div><p class="eyebrow dark">BREVO &middot; EMAIL NOTIFICATIONS</p><h2 id="emailDialogTitle">E-postvarsler</h2><p class="dialog-subtitle">En egen varslingskanal ved siden av Teams. Oppsett og mottakere gjelder bare valgt kunde.</p></div><button class="icon-button" id="closeEmailNotifications" type="button" aria-label="Lukk">&times;</button></div>
+    <label class="field">Kunde<select id="emailTenantSelect"></select></label>
+    <div id="emailProviderState" class="teams-webhook-state" aria-live="polite"></div>
+    <fieldset id="emailSettingsFields" class="notification-fieldset" disabled>
+      <div class="form-grid">
+        <label class="toggle-field span-2"><input type="checkbox" id="emailEnabled"><span><strong>Aktiver e-postvarsler</strong><small>Automatiske varsler etter planlagt eller manuell synkronisering. Teams-innstillingene endres ikke.</small></span></label>
+        <label class="field span-2">Spr&#229;k i e-post<select id="emailLocale"><option value="nb">Norsk</option><option value="en">English</option></select></label>
+      </div>
+      <div class="notification-section-head"><div><h3>Mottakere</h3><p class="dialog-subtitle">Maksimalt 20 adresser. Hver mottaker f&#229;r sin egen e-post.</p></div><button id="addEmailRecipient" type="button" class="secondary-button">+ Legg til mottaker</button></div>
+      <div id="emailRecipients" class="email-recipients"></div>
+      <p class="notification-privacy-note">Legg bare til godkjente mottakere. Varslene inneholder kundenavn og opplysninger om elementet som utl&#248;per.</p>
+      <div class="notification-section-head"><div><h3>Varselniv&#229;er</h3><p class="dialog-subtitle">Samme action windows som Teams: grensene hentes fra hvert element, ikke fra en egen e-postplan.</p></div></div>
+      <div class="form-grid">
+        <label class="toggle-field"><input id="emailNotifyPlanned" type="checkbox" checked><span><strong>Start fornyelse</strong><small>N&#229;r anbefalt startvindu n&#229;s.</small></span></label>
+        <label class="toggle-field"><input id="emailNotifyUrgent" type="checkbox" checked><span><strong>Haster</strong><small>N&#229;r elementet g&#229;r inn i hastevinduet.</small></span></label>
+        <label class="toggle-field"><input id="emailNotifyCritical" type="checkbox" checked><span><strong>Kritisk</strong><small>N&#229;r elementet g&#229;r inn i kritiskvinduet.</small></span></label>
+        <label class="toggle-field"><input id="emailNotifyExpired" type="checkbox" checked><span><strong>Utl&#248;pt</strong><small>N&#229;r utl&#248;psdatoen er passert.</small></span></label>
+      </div>
+    </fieldset>
+    <div class="notice compact-notice"><strong>Sikker utsending</strong><p>Brevo API-n&#248;kkelen ligger kun som Worker secret. Avsender konfigureres sentralt. Testmail sendes til alle aktive, lagrede mottakere, ogs&#229; n&#229;r automatisk varsling er av.</p></div>
+    <div id="emailLastStatus" class="teams-last-status" aria-live="polite"></div>
+    <div id="emailFeedback" class="notification-feedback" role="status" aria-live="polite"></div>
+    <div class="dialog-actions notification-dialog-actions"><button id="emailOpenLog" type="button" class="secondary-button">Varslingslogg</button><button id="emailTestButton" type="button" class="secondary-button" disabled>Lagre og send testmail</button><button id="cancelEmailNotifications" type="button" class="secondary-button">Lukk</button><button id="emailSaveButton" type="submit" class="primary-button" disabled>Lagre e-postvarsler</button></div>
+  </form>
+</dialog>
+
+<dialog id="notificationLogDialog" class="notification-log-dialog" aria-labelledby="notificationLogTitle">
+  <div class="notification-log-inner">
+    <div class="dialog-head"><div><p class="eyebrow dark">NOTIFICATIONS</p><h2 id="notificationLogTitle">Varslingslogg</h2><p class="dialog-subtitle">E-post og Teams logges separat fra sikkerhetsloggen. Akseptert betyr at leverand&#248;ren tok imot foresp&#248;rselen, ikke bekreftet levering i innboksen eller kanalen.</p></div><button id="closeNotificationLog" class="icon-button" type="button" aria-label="Lukk">&times;</button></div>
+    <div class="notification-log-filters">
+      <label class="field">Kunde<select id="notificationLogTenant"></select></label>
+      <label class="field">Kanal<select id="notificationLogChannel"><option value="">Alle kanaler</option><option value="email">E-post</option><option value="teams">Teams</option></select></label>
+      <label class="field">Status<select id="notificationLogStatus"><option value="">Alle statuser</option><option value="accepted">Akseptert</option><option value="failed">Feilet</option><option value="unknown">Usikker status</option><option value="retry_queued">Nytt fors&#248;k planlagt</option></select></label>
+      <button id="refreshNotificationLog" class="secondary-button" type="button">Oppdater</button>
+    </div>
+    <div id="notificationLogSummary" class="notification-privacy-note" aria-live="polite"></div>
+    <div id="notificationLogEntries" class="notification-log-entries" aria-live="polite"></div>
+    <div class="dialog-actions"><button id="moreNotificationLog" class="secondary-button" type="button" hidden>Vis flere</button><button id="doneNotificationLog" class="primary-button" type="button">Ferdig</button></div>
+  </div>
+</dialog>
+
 <dialog id="auditDialog" class="audit-dialog">
   <form method="dialog">
     <div class="dialog-head"><div><p class="eyebrow dark">SIKKERHET</p><h2>Sikkerhetslogg</h2><p class="dialog-subtitle">Management-handlinger og endringer logges med bruker, tenant og tidspunkt.</p></div><button class="icon-button" value="cancel" aria-label="Lukk">×</button></div>
@@ -342,9 +388,10 @@
 <dialog id="confirmDialog" class="confirm-dialog"><form method="dialog"><h2 id="confirmTitle">Bekreft</h2><p id="confirmText"></p><div class="dialog-actions"><button class="secondary-button" value="cancel">Avbryt</button><button class="danger-button" value="confirm">Fortsett</button></div></form></dialog>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-<script src="config.js"></script>
-<script src="i18n.js"></script>
-<script src="app.js"></script>
+<script src="config.js?v=5.4.0"></script>
+<script src="i18n.js?v=5.4.0"></script>
+<script src="notifications.js?v=5.4.0"></script>
+<script src="app.js?v=5.4.0"></script>
 
 <!-- Cloudflare Web Analytics -->
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token":"584b7f6cade542558bae17a2033268f2"}'></script>

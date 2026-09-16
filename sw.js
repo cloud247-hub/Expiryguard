@@ -1,10 +1,11 @@
 'use strict';
 
-const CACHE = 'expiryguard-v5-3-5-security-hardening';
+const CACHE = 'expiryguard-v5-4-0-email-notifications';
 const STATIC_ASSETS = [
-  './styles.css',
-  './app.js',
-  './i18n.js',
+  './styles.css?v=5.4.0',
+  './app.js?v=5.4.0',
+  './i18n.js?v=5.4.0',
+  './notifications.js?v=5.4.0',
   './assets/cloud247-logo.svg',
   './assets/cloud247-mark.svg',
   './assets/favicon.svg'

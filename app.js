@@ -127,6 +127,7 @@
   let auditEntries = [];
   let portalUsers = [];
   let teamsNotificationSettings = null;
+  let notificationUi = null;
 
   function loadSettings() {
     const defaults = { defaultReminder: 30, notifyEnabled: false, notificationCadence: 12, rotateTenants: false, rotateSeconds: 30 };
@@ -256,6 +257,7 @@
       fetch(`${API_BASE}/api/auth/logout`, { method: 'POST', headers: { Authorization: `Bearer ${current.accessToken}` }, keepalive: true }).catch(() => {});
     }
     setAuthSession(null); currentUser = null; tenants = []; items = []; events = [];
+    notificationUi?.refreshAccess();
     document.body.classList.remove('customer-mode', 'viewer-mode');
     showAuthGate('Du er logget ut av ExpiryGuard.');
   }
@@ -273,6 +275,7 @@
   }
 
   function applyAccessMode() {
+    notificationUi?.refreshAccess();
     const customer = isCustomer();
     const write = canWrite();
     document.body.classList.toggle('customer-mode', customer);
@@ -771,6 +774,10 @@
       'teams_notifications.test_sent': L('Teams testvarsel sendt', 'Teams test notification sent'),
       'teams_notifications.test_failed': L('Teams testvarsel feilet', 'Teams test notification failed'),
       'teams_notifications.scheduled': L('Teams-varsler behandlet', 'Teams notifications processed'),
+      'email_notifications.settings_updated': L('E-postvarsler oppdatert', 'Email notifications updated'),
+      'email_notifications.test': L('E-posttest behandlet', 'Email test processed'),
+      'email_notifications.retry_queued': L('Nytt e-postfors\u00f8k planlagt', 'Email retry queued'),
+      'email_notifications.scheduled': L('E-postvarsler behandlet', 'Email notifications processed'),
       'request.failed': L('Avvist eller feilet endringsforsøk', 'Rejected or failed change request')
     };
     return labels[action] || action || L('Ukjent handling', 'Unknown action');
@@ -1115,7 +1122,7 @@
       lines.push('BEGIN:VEVENT', `UID:${icsEscape(item.id)}-expiry@expiryguard.cloud247.no`, `DTSTAMP:${now}`, `DTSTART:${icsDate(item.expiresAt)}`, `SUMMARY:${icsEscape(L(`ExpiryGuard: UTLØPER – ${item.name}`, `ExpiryGuard: EXPIRES – ${item.name}`))}`, `DESCRIPTION:${icsEscape(desc)}`, 'END:VEVENT');
     }
     lines.push('END:VCALENDAR');
-    download(`expiryguard-v5.3.0-${new Date().toISOString().slice(0, 10)}.ics`, lines.join('\r\n'), 'text/calendar;charset=utf-8');
+    download(`expiryguard-v5.4.0-${new Date().toISOString().slice(0, 10)}.ics`, lines.join('\r\n'), 'text/calendar;charset=utf-8');
   }
 
   function download(name, text, type) { const blob = new Blob([text], { type }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); }
@@ -1220,12 +1227,12 @@
   });
 
   els.search.addEventListener('input', renderItems); els.filter.addEventListener('change', renderItems);
-  els.exportJson.addEventListener('click', () => download(`expiryguard-v5.3.0-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify({ version: '5.3.0', exportedAt: new Date().toISOString(), tenants, items, events }, null, 2), 'application/json'));
+  els.exportJson.addEventListener('click', () => download(`expiryguard-v5.4.0-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify({ version: '5.4.0', exportedAt: new Date().toISOString(), tenants, items, events }, null, 2), 'application/json'));
   els.exportIcs.addEventListener('click', exportCalendar);
   els.exportCsv.addEventListener('click', () => {
     const h = ['tenantId', 'tenantName', 'name', 'kind', 'source', 'expiresAt', 'recommendedStartAt', 'stage', 'impact', 'workflowState', 'owner', 'reminderDays', 'urgentDays', 'criticalDays', 'url', 'notes'];
     const rows = [h.join(','), ...items.map(i => h.map(k => csvCell(k === 'tenantName' ? tenantName(i.tenantId) : k === 'recommendedStartAt' ? recommendedStartAt(i) : k === 'stage' ? stageFor(i) : i[k])).join(','))];
-    download(`expiryguard-v5.3.0-${new Date().toISOString().slice(0, 10)}.csv`, rows.join('\n'), 'text/csv;charset=utf-8');
+    download(`expiryguard-v5.4.0-${new Date().toISOString().slice(0, 10)}.csv`, rows.join('\n'), 'text/csv;charset=utf-8');
   });
   els.importFile.addEventListener('change', async () => {
     const file = els.importFile.files[0]; if (!file) return; if (!ensureAdmin()) { els.importFile.value = ''; return; }
@@ -1261,6 +1268,7 @@
     if (els.manualDialog.open) updateManualPolicyHint();
     if (els.portalUsersDialog?.open) renderPortalUsers();
     if (els.teamsDialog?.open) renderTeamsNotificationSettings();
+    notificationUi?.languageChanged();
     if (els.auditDialog?.open) renderAuditLog();
     updateNotificationButton();
     applyAccessMode();
@@ -1268,7 +1276,7 @@
 
   async function init() {
     $('year').textContent = new Date().getFullYear();
-    if ('serviceWorker' in navigator) { try { await navigator.serviceWorker.register('sw.js'); } catch {} }
+    if ('serviceWorker' in navigator) { try { await navigator.serviceWorker.register('sw.js?v=5.4.0'); } catch {} }
     if (els.signIn) els.signIn.addEventListener('click', () => beginMicrosoftLogin().catch(err => setAuthStatus(err.message || 'Kunne ikke starte Microsoft-innlogging', true)));
     els.signOut.addEventListener('click', signOutLocal);
     try { await handleAuthCallback(); } catch (err) { showAuthGate(err.message || 'Microsoft-innlogging feilet', true); return; }
@@ -1294,5 +1302,11 @@
     setInterval(updateLiveText, 1000);
     setInterval(() => refresh({ quiet: true }), 10 * 60 * 1000);
   }
+  notificationUi = window.ExpiryGuardNotifications?.init({
+    api, L, esc, toast, fmtDate,
+    getUser: () => currentUser,
+    getTenants: () => tenants,
+    getSelectedTenant: () => selectedTenant
+  });
   init();
 })();
