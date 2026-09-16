@@ -1122,7 +1122,7 @@
       lines.push('BEGIN:VEVENT', `UID:${icsEscape(item.id)}-expiry@expiryguard.cloud247.no`, `DTSTAMP:${now}`, `DTSTART:${icsDate(item.expiresAt)}`, `SUMMARY:${icsEscape(L(`ExpiryGuard: UTLØPER – ${item.name}`, `ExpiryGuard: EXPIRES – ${item.name}`))}`, `DESCRIPTION:${icsEscape(desc)}`, 'END:VEVENT');
     }
     lines.push('END:VCALENDAR');
-    download(`expiryguard-v5.4.1-${new Date().toISOString().slice(0, 10)}.ics`, lines.join('\r\n'), 'text/calendar;charset=utf-8');
+    download(`expiryguard-v5.4.0-${new Date().toISOString().slice(0, 10)}.ics`, lines.join('\r\n'), 'text/calendar;charset=utf-8');
   }
 
   function download(name, text, type) { const blob = new Blob([text], { type }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); }
@@ -1227,12 +1227,12 @@
   });
 
   els.search.addEventListener('input', renderItems); els.filter.addEventListener('change', renderItems);
-  els.exportJson.addEventListener('click', () => download(`expiryguard-v5.4.1-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify({ version: '5.4.1', exportedAt: new Date().toISOString(), tenants, items, events }, null, 2), 'application/json'));
+  els.exportJson.addEventListener('click', () => download(`expiryguard-v5.4.0-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify({ version: '5.4.0', exportedAt: new Date().toISOString(), tenants, items, events }, null, 2), 'application/json'));
   els.exportIcs.addEventListener('click', exportCalendar);
   els.exportCsv.addEventListener('click', () => {
     const h = ['tenantId', 'tenantName', 'name', 'kind', 'source', 'expiresAt', 'recommendedStartAt', 'stage', 'impact', 'workflowState', 'owner', 'reminderDays', 'urgentDays', 'criticalDays', 'url', 'notes'];
     const rows = [h.join(','), ...items.map(i => h.map(k => csvCell(k === 'tenantName' ? tenantName(i.tenantId) : k === 'recommendedStartAt' ? recommendedStartAt(i) : k === 'stage' ? stageFor(i) : i[k])).join(','))];
-    download(`expiryguard-v5.4.1-${new Date().toISOString().slice(0, 10)}.csv`, rows.join('\n'), 'text/csv;charset=utf-8');
+    download(`expiryguard-v5.4.0-${new Date().toISOString().slice(0, 10)}.csv`, rows.join('\n'), 'text/csv;charset=utf-8');
   });
   els.importFile.addEventListener('change', async () => {
     const file = els.importFile.files[0]; if (!file) return; if (!ensureAdmin()) { els.importFile.value = ''; return; }
@@ -1276,7 +1276,7 @@
 
   async function init() {
     $('year').textContent = new Date().getFullYear();
-    if ('serviceWorker' in navigator) { try { await navigator.serviceWorker.register('sw.js?v=5.4.1'); } catch {} }
+    if ('serviceWorker' in navigator) { try { await navigator.serviceWorker.register('sw.js?v=5.4.0'); } catch {} }
     if (els.signIn) els.signIn.addEventListener('click', () => beginMicrosoftLogin().catch(err => setAuthStatus(err.message || 'Kunne ikke starte Microsoft-innlogging', true)));
     els.signOut.addEventListener('click', signOutLocal);
     try { await handleAuthCallback(); } catch (err) { showAuthGate(err.message || 'Microsoft-innlogging feilet', true); return; }
